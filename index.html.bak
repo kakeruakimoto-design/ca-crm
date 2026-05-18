@@ -1,0 +1,3465 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="minimal-light">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>【テストモード】CA個人ダッシュボード CRM</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+
+/* ====== THEME VARIABLES ====== */
+:root {
+  --transition: all 0.2s ease;
+}
+
+[data-theme="minimal-light"] {
+  --bg-base: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-sidebar: #1e3a5f;
+  --bg-sidebar-hover: #2d5086;
+  --bg-sidebar-active: #3b6eb5;
+  --bg-header: #ffffff;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #4b5563;
+  --text-sidebar: #cbd5e1;
+  --text-sidebar-active: #ffffff;
+  --accent: #2563eb;
+  --accent-light: #dbeafe;
+  --accent-subtle: #eff6ff;
+  --border: #e2e8f0;
+  --border-light: #f1f5f9;
+  --success: #059669;
+  --success-bg: #ecfdf5;
+  --warning: #d97706;
+  --warning-bg: #fffbeb;
+  --danger: #dc2626;
+  --danger-bg: #fef2f2;
+  --info: #0891b2;
+  --info-bg: #ecfeff;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -1px rgba(0,0,0,0.04);
+  --radius: 8px;
+  --radius-sm: 4px;
+  --radius-lg: 12px;
+  --chart-1: #2563eb;
+  --chart-2: #7c3aed;
+  --chart-3: #059669;
+  --chart-4: #d97706;
+  --chart-5: #dc2626;
+  --donut-fill: #2563eb;
+  --donut-track: #e2e8f0;
+  --funnel-fill: #2563eb;
+  --bar-fill: #3b82f6;
+}
+
+[data-theme="executive-dark"] {
+  --bg-base: #0a0f1e;
+  --bg-card: #111827;
+  --bg-sidebar: #060c18;
+  --bg-sidebar-hover: #1a2744;
+  --bg-sidebar-active: #1e3a8a;
+  --bg-header: #111827;
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --text-sidebar: #94a3b8;
+  --text-sidebar-active: #e0f2fe;
+  --accent: #06b6d4;
+  --accent-light: #164e63;
+  --accent-subtle: #0c2a38;
+  --border: #1e293b;
+  --border-light: #0f172a;
+  --success: #10b981;
+  --success-bg: #064e3b;
+  --warning: #f59e0b;
+  --warning-bg: #451a03;
+  --danger: #f87171;
+  --danger-bg: #450a0a;
+  --info: #22d3ee;
+  --info-bg: #083344;
+  --shadow: 0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.4), 0 2px 4px -1px rgba(0,0,0,0.3);
+  --radius: 8px;
+  --radius-sm: 4px;
+  --radius-lg: 12px;
+  --chart-1: #06b6d4;
+  --chart-2: #818cf8;
+  --chart-3: #10b981;
+  --chart-4: #f59e0b;
+  --chart-5: #f87171;
+  --donut-fill: #06b6d4;
+  --donut-track: #1e293b;
+  --funnel-fill: #1d4ed8;
+  --bar-fill: #06b6d4;
+}
+
+[data-theme="soft-modern"] {
+  --bg-base: #f0f4f8;
+  --bg-card: #ffffff;
+  --bg-sidebar: #1a365d;
+  --bg-sidebar-hover: #2c4f7c;
+  --bg-sidebar-active: #2b6cb0;
+  --bg-header: #ffffff;
+  --text-primary: #1a202c;
+  --text-secondary: #4a5568;
+  --text-muted: #a0aec0;
+  --text-sidebar: #bee3f8;
+  --text-sidebar-active: #ffffff;
+  --accent: #0891b2;
+  --accent-light: #cffafe;
+  --accent-subtle: #f0f9ff;
+  --border: #e2e8f0;
+  --border-light: #f7fafc;
+  --success: #0d9488;
+  --success-bg: #f0fdfa;
+  --warning: #b45309;
+  --warning-bg: #fffbeb;
+  --danger: #e53e3e;
+  --danger-bg: #fff5f5;
+  --info: #0284c7;
+  --info-bg: #f0f9ff;
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --radius: 10px;
+  --radius-sm: 6px;
+  --radius-lg: 14px;
+  --chart-1: #0891b2;
+  --chart-2: #6d28d9;
+  --chart-3: #0d9488;
+  --chart-4: #b45309;
+  --chart-5: #e53e3e;
+  --donut-fill: #0891b2;
+  --donut-track: #e2e8f0;
+  --funnel-fill: #0891b2;
+  --bar-fill: #0891b2;
+}
+
+/* ====== BASE STYLES ====== */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { 
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic UI', 'Segoe UI', sans-serif;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.5;
+}
+.app-layout { display: flex; height: 100vh; overflow: hidden; }
+
+/* ====== SIDEBAR ====== */
+.sidebar {
+  width: 220px;
+  min-width: 220px;
+  background: var(--bg-sidebar);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  border-right: 1px solid rgba(255,255,255,0.05);
+}
+.sidebar-logo {
+  padding: 20px 16px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.sidebar-logo h1 { color: #fff; font-size: 16px; font-weight: 700; letter-spacing: -0.3px; }
+.sidebar-logo p { color: var(--text-sidebar); font-size: 13px; margin-top: 2px; opacity: 0.7; }
+.sidebar-nav { flex: 1; padding: 8px 0; }
+.nav-section-label {
+  padding: 12px 16px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-sidebar);
+  opacity: 0.5;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 16px;
+  cursor: pointer;
+  color: var(--text-sidebar);
+  font-size: 15px;
+  font-weight: 400;
+  transition: var(--transition);
+  border-left: 3px solid transparent;
+}
+.nav-item:hover { background: var(--bg-sidebar-hover); color: var(--text-sidebar-active); }
+.nav-item.active { 
+  background: var(--bg-sidebar-active);
+  color: var(--text-sidebar-active);
+  border-left-color: var(--accent);
+  font-weight: 500;
+}
+.nav-item .nav-icon { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; opacity: 0.75; }
+.nav-item.active .nav-icon { opacity: 1; }
+.sidebar-footer {
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  color: var(--text-sidebar);
+  font-size: 14px;
+  opacity: 0.6;
+}
+
+/* ====== MAIN CONTENT ====== */
+.main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.topbar {
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.topbar-left { display: flex; align-items: center; gap: 16px; }
+.page-title { font-size: 16px; font-weight: 600; color: var(--text-primary); }
+.page-subtitle { font-size: 14px; color: var(--text-muted); }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+
+.content-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ====== CARDS ====== */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+.card-header {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.card-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.card-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 1px; }
+.card-body { padding: 14px 16px; }
+
+/* ====== KPI CARD ====== */
+.kpi-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 10px; }
+.kpi-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 12px;
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+}
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--kpi-color, var(--accent));
+}
+.kpi-label { font-size: 13px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+.kpi-value { font-size: 28px; font-weight: 700; color: var(--text-primary); line-height: 1.1; margin: 4px 0 2px; letter-spacing: -1px; }
+.kpi-target { font-size: 13px; color: var(--text-muted); }
+.kpi-rate { font-size: 13px; font-weight: 600; margin-top: 6px; }
+.kpi-progress { height: 3px; background: var(--border); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+.kpi-progress-fill { height: 100%; border-radius: 2px; background: var(--kpi-color, var(--accent)); transition: width 0.6s ease; }
+.kpi-badge {
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-top: 3px;
+}
+.kpi-badge.good { background: var(--success-bg); color: var(--success); }
+.kpi-badge.warn { background: var(--warning-bg); color: var(--warning); }
+.kpi-badge.bad { background: var(--danger-bg); color: var(--danger); }
+
+/* ====== RATE KPI CARD ====== */
+.rate-kpi-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  box-shadow: var(--shadow);
+}
+.rate-kpi-label { font-size: 13px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.4px; }
+.rate-kpi-value { font-size: 24px; font-weight: 700; margin: 3px 0; letter-spacing: -0.5px; }
+.rate-kpi-detail { font-size: 13px; color: var(--text-muted); }
+.rate-kpi-gauge { height: 4px; background: var(--border); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+.rate-kpi-gauge-fill { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+.rate-kpi-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+.eval-badge {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  letter-spacing: 0.3px;
+}
+.eval-good { background: var(--success-bg); color: var(--success); }
+.eval-warn { background: var(--warning-bg); color: var(--warning); }
+.eval-bad { background: var(--danger-bg); color: var(--danger); }
+
+/* ====== PROGRESS TABLE ====== */
+.progress-table { width: 100%; border-collapse: collapse; }
+.progress-table th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 6px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.progress-table th.num { text-align: right; }
+.progress-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.progress-table td.num { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.progress-table tr:last-child td { border-bottom: none; }
+.progress-table tbody tr:hover { background: var(--accent-subtle); }
+.stage-bar { height: 5px; background: var(--border); border-radius: 3px; width: 120px; overflow: hidden; }
+.stage-bar-fill { height: 100%; border-radius: 3px; }
+
+/* ====== STATUS BADGE ====== */
+.status-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+/* ====== TABLE ====== */
+.data-table-wrap { overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  position: sticky;
+  top: 0;
+  background: var(--bg-card);
+}
+.data-table th:hover { color: var(--accent); }
+.data-table td {
+  padding: 10px 10px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 14px;
+  vertical-align: middle;
+}
+.data-table tbody tr:hover { background: var(--accent-subtle); }
+.data-table td.name { font-weight: 600; }
+
+/* ====== INTERVIEW LIST ====== */
+.interview-item {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.interview-item:last-child { border-bottom: none; }
+.interview-dot { 
+  width: 8px; height: 8px; border-radius: 50%;
+  flex-shrink: 0; margin-top: 4px;
+}
+.interview-name { font-size: 14px; font-weight: 600; }
+.interview-meta { font-size: 13px; color: var(--text-muted); margin-top: 1px; }
+
+/* ====== ACTION LIST ====== */
+.action-item {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.action-item:last-child { border-bottom: none; }
+.action-priority {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.action-text { font-size: 14px; font-weight: 500; }
+.action-due { font-size: 13px; color: var(--text-muted); margin-top: 1px; }
+
+/* ====== THEME SWITCHER ====== */
+.theme-switcher { display: flex; gap: 4px; align-items: center; }
+.theme-btn {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex; align-items: center; justify-content: center;
+}
+.theme-btn.active { border-color: var(--text-primary); }
+.theme-btn:hover { transform: scale(1.15); }
+
+/* ====== GRID LAYOUTS ====== */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.grid-3-2-1 { display: grid; grid-template-columns: 1fr 1.4fr 0.9fr; gap: 14px; }
+.grid-1-2-1 { display: grid; grid-template-columns: 1fr 1.6fr 1fr; gap: 14px; }
+
+/* ====== DONUT CHART ====== */
+.donut-container { display: flex; flex-direction: column; align-items: center; }
+.donut-center { font-size: 26px; font-weight: 700; }
+.donut-center-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.donut-stats { display: flex; flex-direction: column; gap: 8px; width: 100%; margin-top: 12px; }
+.donut-stat { display: flex; justify-content: space-between; align-items: center; }
+.donut-stat-label { font-size: 13px; color: var(--text-muted); }
+.donut-stat-value { font-size: 14px; font-weight: 600; }
+
+/* ====== MISC ====== */
+.separator { height: 1px; background: var(--border); margin: 8px 0; }
+.badge-count { 
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+}
+.text-success { color: var(--success); }
+.text-warning { color: var(--warning); }
+.text-danger { color: var(--danger); }
+.text-accent { color: var(--accent); }
+.text-muted { color: var(--text-muted); }
+.font-mono { font-variant-numeric: tabular-nums; }
+.section-row { display: flex; gap: 14px; }
+.flex-1 { flex: 1; }
+.admin-link { 
+  font-size: 13px; color: var(--text-sidebar); opacity: 0.6;
+  padding: 10px 16px; cursor: pointer; transition: var(--transition);
+}
+.admin-link:hover { opacity: 1; color: var(--text-sidebar-active); }
+.tag {
+  display: inline-block; font-size: 12px; font-weight: 600;
+  padding: 1px 5px; border-radius: 3px;
+  background: var(--accent-light); color: var(--accent);
+}
+.scrollable-area { overflow-y: auto; }
+.empty-state { 
+  text-align: center; padding: 24px; color: var(--text-muted); font-size: 12px;
+}
+input.search-input {
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--text-primary);
+  width: 180px;
+  outline: none;
+}
+input.search-input:focus { border-color: var(--accent); }
+select.filter-select {
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 5px 8px;
+  font-size: 12px;
+  color: var(--text-primary);
+  outline: none;
+  cursor: pointer;
+}
+.period-tag {
+  font-size: 13px;
+  color: var(--text-muted);
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+}
+
+
+/* テストモードバナー */
+.test-mode-banner {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+  background: #f59e0b; color: #fff; text-align: center;
+  padding: 4px; font-size: 13px; font-weight: 700; letter-spacing: 0.5px;
+}
+body { padding-top: 28px; }
+</style>
+</head>
+<body>
+<!-- Firebase初期化（Babelなし通常JS） -->
+<script>
+(function() {
+  const cfg = {
+    apiKey: "AIzaSyDdKe3KQpXvKwh4AY_dOpccoBDvYyq9JNo",
+    authDomain: "nextrend-crm.firebaseapp.com",
+    projectId: "nextrend-crm",
+    storageBucket: "nextrend-crm.firebasestorage.app",
+    messagingSenderId: "52694573891",
+    appId: "1:52694573891:web:5200bff00aa3694caf85f6"
+  };
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(cfg);
+    const db = firebase.firestore();
+    window.__crmDb = db;
+
+    const SYNC_KEYS = [
+      'test-crm-candidates',
+      'test-crm-accepted',
+      'test-crm-interview-plans',
+      'test-crm-candidate-meta',
+      'test-crm-post-accept-milestones',
+      'test-crm-goals',
+    ];
+
+    // オリジナルのsetItemを保存
+    const _orig = localStorage.setItem.bind(localStorage);
+    window.__lsSetItem = _orig;
+
+    // localStorage書き込み → Firestoreにも自動反映
+    localStorage.setItem = function(key, value) {
+      _orig(key, value);
+      if (SYNC_KEYS.includes(key) && window.__crmDb) {
+        try {
+          window.__crmDb.collection('crm').doc(key).set({ v: JSON.parse(value) })
+            .catch(function(e) { console.warn('[Firestore] write error:', key, e); });
+        } catch(e) {}
+      }
+    };
+
+    // Firestore → localStorage同期（Promise返す）
+    window.__syncFromFirestore = async function() {
+      if (!window.__crmDb) return [];
+      const synced = [];
+      await Promise.all(SYNC_KEYS.map(async function(key) {
+        try {
+          const snap = await window.__crmDb.collection('crm').doc(key).get();
+          if (snap.exists && snap.data() && snap.data().v !== undefined) {
+            _orig(key, JSON.stringify(snap.data().v));
+            synced.push(key);
+          }
+        } catch(e) { console.warn('[Firestore] read error:', key, e); }
+      }));
+      return synced;
+    };
+
+    console.log('[Firestore] 初期化完了 - nextrend-crm');
+  } catch(e) {
+    console.warn('[Firestore] 初期化失敗:', e);
+    window.__syncFromFirestore = async function() { return []; };
+  }
+})();
+</script>
+
+<div id="root"><div style="display:flex;align-items:center;justify-content:center;height:100vh;font-size:18px;color:#6B7280;">読み込み中...</div></div>
+<script type="text/babel">
+
+const MOCK_CANDIDATES = [
+  {id:'r001',name:'佐藤 大輝',age:35,gender:'男',phone:'80 5889 8519',email:'syn7136_vsx@indeed.com',prefecture:'愛知県',jobType:'営業テクスチャー',createdAt:'2026-04-02',media:'Indeed',assignedCA:'中村CA',assignedCS:'鈴木CS',status:'選考中',validStatus:'有効',companyName:'EK',firstContactDate:'2026-04-02',firstInterviewDate:'2026-04-07',memo:'積極的',expectedRevenue:200000},
+  {id:'r002',name:'田中 誠',age:28,gender:'男',phone:'70 9100 6024',email:'scgdb35346phkyi@indeed.com',prefecture:'東京都',jobType:'ITエンジニア',createdAt:'2026-04-03',media:'doda',assignedCA:'秋元CA',assignedCS:'鈴木CS',status:'内定',validStatus:'有効',companyName:'ネクトレンシス',firstContactDate:'2026-04-03',firstInterviewDate:'2026-04-14',memo:'内定済み',expectedRevenue:250000},
+  {id:'r003',name:'山本 健太',age:30,gender:'男',phone:'90 1213 1323',email:'hkssmm31405@indeed.com',prefecture:'大阪府',jobType:'Webクリエイター',createdAt:'2026-04-04',media:'Indeed',assignedCA:'中村CA',assignedCS:'鈴木CS',status:'承諾',validStatus:'有効',companyName:'ネクトレンジュ',firstContactDate:'2026-04-04',firstInterviewDate:'2026-04-10',memo:'承諾確認済み',expectedRevenue:300000,bridgeDate:'2026-04-10',bridgeResult:'成功',proposalDate:'2026-04-15',recommendationDate:'2026-04-20',offerDate:'2026-04-25',acceptanceDate:'2026-04-26',joiningDate:'2026-05-01',contractAmount:300000},
+  {id:'r004',name:'鈴木 花子',age:25,gender:'女',phone:'80 7068 8221',email:'kamuro@indeed.com',prefecture:'神奈川県',jobType:'営業エンジニア',createdAt:'2026-04-05',media:'リクナビNEXT',assignedCA:'秋元CA',assignedCS:'鈴木CS',status:'企業面接1',validStatus:'有効',companyName:'ネクトレンシス',firstContactDate:'2026-04-05',firstInterviewDate:'2026-04-11',memo:'来週面接',expectedRevenue:200000,bridgeDate:'2026-04-11',bridgeResult:'成功',proposalDate:'2026-04-19'},
+  {id:'r005',name:'渡辺 光',age:22,gender:'男',phone:'80 7386 5644',email:'colustar@indeed.com',prefecture:'東京都',jobType:'ITエンジニア',createdAt:'2026-04-06',media:'doda',assignedCA:'中村CA',assignedCS:'鈴木CS',status:'面接設定',validStatus:'有効',companyName:'ネクトレンシス',firstContactDate:'2026-04-06',firstInterviewDate:'2026-04-10',memo:'初回面接済み',expectedRevenue:180000},
+  {id:'r006',name:'伊藤 美咲',age:27,gender:'女',phone:'90 6317 8353',email:'naoki711@indeed.com',prefecture:'福岡県',jobType:'Webデザイナー',createdAt:'2026-04-06',media:'マイナビ転職',assignedCA:'秋元CA',assignedCS:'鈴木CS',status:'ブリッジ成功',validStatus:'有効',companyName:'ネクトレンシス',firstContactDate:'2026-04-06',firstInterviewDate:'2026-04-19',memo:'ブリッジ通過',expectedRevenue:220000,bridgeDate:'2026-04-19',bridgeResult:'成功'},
+  {id:'r007',name:'中村 大介',age:33,gender:'男',phone:'80 8266 6860',email:'mhc8v@indeed.com',prefecture:'埼玉県',jobType:'営業エンジニア',createdAt:'2026-04-07',media:'Indeed',assignedCA:'中村CA',assignedCS:'鈴木CS',status:'応募受付中',validStatus:'有効',companyName:'ネクトレンシス',firstContactDate:'2026-04-07',memo:'応募確認済み',expectedRevenue:0},
+  {id:'r008',name:'小林 亮',age:29,gender:'男',phone:'80 1234 8190',email:'kinoa@indeed.com',prefecture:'北海道',jobType:'営業エンジニア',createdAt:'2026-04-07',media:'doda',assignedCA:'秋元CA',assignedCS:'鈴木CS',status:'面接確定返信待ち',validStatus:'有効',companyName:'ネクトレンシス',firstContactDate:'2026-04-07',firstInterviewDate:'2026-04-25',memo:'返信待ち中',expectedRevenue:0},
+  {id:'r009',name:'高橋 優',age:24,gender:'女',phone:'80 3834 0614',email:'xiangshicun@indeed.com',prefecture:'神奈川県',jobType:'Webデザイナー',createdAt:'2026-04-08',media:'Indeed',assignedCA:'中村CA',assignedCS:'鈴木CS',status:'応募受付中',validStatus:'有効',companyName:'ネクトレンジュ',firstContactDate:'2026-04-08',memo:'新規応募',expectedRevenue:0},
+  {id:'r010',name:'松本 誠也',age:31,gender:'男',phone:'80 4739 4599',email:'joe030498@indeed.com',prefecture:'兵庫県',jobType:'営業テクスチャー',createdAt:'2026-04-09',media:'doda',assignedCA:'秋元CA',assignedCS:'鈴木CS',status:'内定',validStatus:'有効',companyName:'EK',firstContactDate:'2026-04-09',firstInterviewDate:'2026-04-24',memo:'内定承諾待ち',expectedRevenue:280000},
+  {id:'r011',name:'井上 裕一',age:26,gender:'男',phone:'90 1757 2925',email:'sukiyaki1107@indeed.com',prefecture:'愛知県',jobType:'Webデザイナー',createdAt:'2026-04-10',media:'リクナビNEXT',assignedCA:'中村CA',assignedCS:'鈴木CS',status:'承諾',validStatus:'有効',companyName:'ネクトレンジュ',firstContactDate:'2026-04-10',firstInterviewDate:'2026-04-22',memo:'承諾完了',expectedRevenue:320000,bridgeDate:'2026-04-22',bridgeResult:'成功',proposalDate:'2026-04-28',offerDate:'2026-04-28'},
+  {id:'r012',name:'木村 拓也',age:38,gender:'男',phone:'90 9044 8255',email:'mt8255mtrica@indeed.com',prefecture:'北海道',jobType:'システムエンジニア',createdAt:'2026-04-11',media:'Indeed',assignedCA:'秋元CA',assignedCS:'鈴木CS',status:'企業面接1',validStatus:'有効',companyName:'EK',firstContactDate:'2026-04-11',firstInterviewDate:'2026-04-27',memo:'来週企業面接',expectedRevenue:350000,bridgeDate:'2026-04-27',bridgeResult:'成功'},
+  {id:'r013',name:'林 健太',age:23,gender:'男',phone:'80 6954 xxx',email:'abc@indeed.com',prefecture:'東京都',jobType:'ITエンジニア',createdAt:'2026-04-12',media:'doda',assignedCA:'中村CA',assignedCS:'鈴木CS',status:'飛び',validStatus:'無効',companyName:'EK',firstContactDate:'2026-04-12',firstInterviewDate:'2026-04-14',memo:'無断キャンセル',expectedRevenue:0},
+  {id:'r014',name:'清水 大輝',age:29,gender:'男',phone:'70 xxx xxxx',email:'def@indeed.com',prefecture:'大阪府',jobType:'Webクリエイター',createdAt:'2026-04-13',media:'マイナビ転職',assignedCA:'秋元CA',assignedCS:'鈴木CS',status:'辞退',validStatus:'無効',companyName:'ネクトレンジュ',firstContactDate:'2026-04-13',firstInterviewDate:'2026-04-20',memo:'辞退連絡あり',expectedRevenue:0},
+  {id:'r015',name:'橋本 翔',age:32,gender:'男',phone:'90 xxx xxxx',email:'ghi@indeed.com',prefecture:'埼玉県',jobType:'システムエンジニア',createdAt:'2026-04-14',media:'Indeed',assignedCA:'中村CA',assignedCS:'鈴木CS',status:'企業面接2',validStatus:'有効',companyName:'ネクトレンジュ',firstContactDate:'2026-04-14',firstInterviewDate:'2026-04-21',memo:'2次面接通過待ち',expectedRevenue:280000,bridgeDate:'2026-04-21',bridgeResult:'成功'},
+];
+
+const TODAY = '2026-05-06';
+const CURRENT_MONTH = '2026-04';
+
+
+const { useState, useEffect, useCallback, useMemo, useRef } = React;
+
+// ====== UTILITY ======
+const fmt = (n) => n?.toLocaleString('ja-JP') ?? '0';
+const fmtYen = (n) => '¥' + fmt(n);
+const fmtMD = (dateStr) => {
+  if (!dateStr) return '—';
+  const m = (dateStr || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return dateStr;
+  return `${parseInt(m[2])}/${parseInt(m[3])}`;
+};
+const pct = (a, b) => b > 0 ? Math.round((a / b) * 100) : 0;
+const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+function getStatusColor(status) {
+  const map = {
+    '承諾': '#059669', '内定': '#0891b2', 'ブリッジ成功': '#7c3aed',
+    '企業面接2': '#2563eb', '企業面接1': '#3b82f6', '推薦': '#8b5cf6',
+    '企業提案': '#0d9488', '初回面接': '#f97316', '面接設定': '#f59e0b', '応募受付中': '#6b7280',
+    '面接確定返信待ち': '#d97706', '選考中': '#0284c7',
+    '飛び': '#dc2626', '辞退': '#9ca3af', '見送り': '#7c3aed',
+  };
+  return map[status] || '#6b7280';
+}
+
+function getStatusBg(status) {
+  const map = {
+    '承諾': '#ecfdf5', '内定': '#ecfeff', 'ブリッジ成功': '#f5f3ff',
+    '企業面接2': '#eff6ff', '企業面接1': '#eff6ff', '推薦': '#f5f3ff',
+    '企業提案': '#f0fdfa', '初回面接': '#fff7ed', '面接設定': '#fffbeb', '応募受付中': '#f9fafb',
+    '面接確定返信待ち': '#fffbeb', '選考中': '#f0f9ff',
+    '飛び': '#fef2f2', '辞退': '#f9fafb', '見送り': '#f5f3ff',
+  };
+  return map[status] || '#f9fafb';
+}
+
+// ====== THEME SWITCHER ======
+function ThemeSwitcher({ theme, setTheme }) {
+  const themes = [
+    { key: 'minimal-light', color: '#2563eb', label: 'Minimal Light' },
+    { key: 'executive-dark', color: '#0a0f1e', label: 'Executive Dark' },
+    { key: 'soft-modern', color: '#0891b2', label: 'Soft Modern' },
+  ];
+  return (
+    <div className="theme-switcher" title="UIテーマ切替">
+      {themes.map(t => (
+        <div
+          key={t.key}
+          className={`theme-btn ${theme === t.key ? 'active' : ''}`}
+          style={{ background: t.color }}
+          title={t.label}
+          onClick={() => setTheme(t.key)}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ====== KPI CARD ======
+function KPICard({ label, value, target, color, isRate = false, suffix = '', lowerIsBetter = false, monthRatio = null }) {
+  const rate = pct(value, target);
+  const good = lowerIsBetter ? value <= target * 0.3 : rate >= 90;
+  const warn = lowerIsBetter ? (value > target * 0.3 && value <= target * 0.6) : (rate >= 60 && rate < 90);
+  const bad = lowerIsBetter ? value > target * 0.6 : rate < 60;
+  const badgeText = good ? '良好' : warn ? '注意' : '要改善';
+  const badgeClass = good ? 'good' : warn ? 'warn' : 'bad';
+  const displayValue = isRate ? `${value}%` : `${value}${suffix}`;
+  // 本日必要数・本日達成率
+  const todayNeeded = (monthRatio && target) ? target * monthRatio : null;
+  const todayAchRate = (todayNeeded && todayNeeded > 0) ? Math.round(value / todayNeeded * 100) : null;
+  const todayColor = todayAchRate == null ? '' : todayAchRate >= 100 ? 'var(--success)' : todayAchRate >= 70 ? 'var(--warning)' : 'var(--danger)';
+  const todayNeededDisp = todayNeeded != null ? (Number.isInteger(todayNeeded) ? todayNeeded : todayNeeded.toFixed(1)) : null;
+  return (
+    <div className="kpi-card" style={{'--kpi-color': color}}>
+      <div className="kpi-label">{label}</div>
+      <div className="kpi-value">{displayValue}</div>
+      <div className="kpi-target">目標: {isRate ? `${target}%` : `${target}${suffix}`}</div>
+      <div className="kpi-progress">
+        <div className="kpi-progress-fill" style={{width: `${clamp(lowerIsBetter ? 100 - pct(value, target) : rate, 0, 100)}%`}} />
+      </div>
+      <span className={`kpi-badge ${badgeClass}`}>{badgeText} {isRate ? '' : `${rate}%`}</span>
+      {todayNeededDisp !== null && (
+        <div style={{fontSize:'12px', color:'var(--text-muted)', marginTop:'4px'}}>
+          本日必要数: {todayNeededDisp}件
+        </div>
+      )}
+      {todayAchRate !== null && (
+        <div style={{fontSize:'12px', fontWeight:'700', color: todayColor, marginTop:'2px'}}>
+          本日達成率 {todayAchRate}%
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ====== DONUT KPI CARD ======
+function DonutKPICard({ label, value, target, color, monthRatio = null, lowerIsBetter = false }) {
+  const displayRate = target > 0 ? Math.round(value / target * 100) : 0;
+  const fillRate    = Math.min(displayRate, 100);
+  // lowerIsBetter（飛び+辞退など）は値が低いほど良い
+  const good = lowerIsBetter ? displayRate <= 50  : displayRate >= 90;
+  const warn = lowerIsBetter ? displayRate <= 80  : (displayRate >= 60 && displayRate < 90);
+  const badgeText  = good ? '良好' : warn ? '注意' : '要改善';
+  const badgeColor = good ? 'var(--success)' : warn ? 'var(--warning)' : 'var(--danger)';
+  const badgeBg    = good ? 'var(--success-bg)' : warn ? 'var(--warning-bg)' : 'var(--danger-bg)';
+
+  // SVG donut
+  const size = 96;
+  const sw   = 10;
+  const r    = (size - sw) / 2;
+  const circ = 2 * Math.PI * r;
+  const filled = circ * fillRate / 100;
+
+  // 本日必要数・本日達成率
+  const todayNeeded    = (monthRatio && target) ? target * monthRatio : null;
+  const todayAchRate   = (todayNeeded && todayNeeded > 0) ? Math.round(value / todayNeeded * 100) : null;
+  const todayColor     = todayAchRate == null ? '' : todayAchRate >= 100 ? 'var(--success)' : todayAchRate >= 70 ? 'var(--warning)' : 'var(--danger)';
+  const todayNeededDisp = todayNeeded != null ? (Number.isInteger(todayNeeded) ? todayNeeded : todayNeeded.toFixed(1)) : null;
+
+  return (
+    <div style={{
+      background:'var(--bg-card)', border:'1px solid var(--border)',
+      borderRadius:'var(--radius)', padding:'12px 8px 10px',
+      boxShadow:'var(--shadow)', display:'flex', flexDirection:'column',
+      alignItems:'center', gap:'5px', position:'relative', overflow:'hidden',
+    }}>
+      <div style={{position:'absolute',top:0,left:0,right:0,height:'3px',background:color}}/>
+      <div style={{fontSize:'12px',color:'var(--text-muted)',fontWeight:'600',textTransform:'uppercase',letterSpacing:'0.5px',textAlign:'center'}}>{label}</div>
+      {/* Donut SVG */}
+      <div style={{position:'relative',width:`${size}px`,height:`${size}px`}}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{transform:'rotate(-90deg)'}}>
+          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--border)" strokeWidth={sw}/>
+          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={sw}
+            strokeDasharray={`${filled} ${circ}`} strokeLinecap="round"/>
+        </svg>
+        <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:'1px'}}>
+          <div style={{fontSize:'26px',fontWeight:'800',color:'var(--text-primary)',lineHeight:1}}>{value}</div>
+          <div style={{fontSize:'12px',color:'var(--text-muted)'}}>/ {target}</div>
+        </div>
+      </div>
+      <span style={{fontSize:'12px',fontWeight:'700',padding:'2px 8px',borderRadius:'10px',background:badgeBg,color:badgeColor}}>
+        {badgeText} {displayRate}%
+      </span>
+      {todayNeededDisp !== null && (
+        <div style={{fontSize:'12px',color:'var(--text-muted)',textAlign:'center'}}>本日必要数: {todayNeededDisp}件</div>
+      )}
+      {todayAchRate !== null && (
+        <div style={{fontSize:'12px',fontWeight:'700',color:todayColor,textAlign:'center'}}>本日達成率 {todayAchRate}%</div>
+      )}
+    </div>
+  );
+}
+
+// ====== RATE KPI CARD ======
+function RateKPICard({ label, value, target, numerator, denominator, lowerIsBetter = false, denominatorLabel = null }) {
+  const good = lowerIsBetter ? value <= target * 0.5 : value >= target;
+  const warn = lowerIsBetter ? (value > target * 0.5 && value <= target) : (value >= target * 0.7 && value < target);
+  const bad = lowerIsBetter ? value > target : value < target * 0.7;
+  const evalClass = good ? 'eval-good' : warn ? 'eval-warn' : 'eval-bad';
+  const evalText = good ? '良好' : warn ? '注意' : '要改善';
+  const color = good ? 'var(--success)' : warn ? 'var(--warning)' : 'var(--danger)';
+  const gaugeWidth = clamp(lowerIsBetter ? (1 - value/100)*100 : (value/target)*100, 0, 100);
+  return (
+    <div className="rate-kpi-card">
+      <div className="rate-kpi-label">{label}</div>
+      <div className="rate-kpi-value" style={{color}}>{value}%</div>
+      <div className="rate-kpi-detail">{numerator}件 / {denominatorLabel || `${denominator}件`}</div>
+      <div className="rate-kpi-gauge">
+        <div className="rate-kpi-gauge-fill" style={{width: `${gaugeWidth}%`, background: color}} />
+      </div>
+      <div className="rate-kpi-meta">
+        <span className="text-muted" style={{fontSize:'14px'}}>目標: {target}%</span>
+        <span className={`eval-badge ${evalClass}`}>{evalText}</span>
+      </div>
+    </div>
+  );
+}
+
+// ====== DONUT CHART ======
+function DonutChart({ value, target, requiredByToday, current, size = 140 }) {
+  const rate = pct(current, target);
+  const reqRate = pct(requiredByToday, target);
+  const r = 52;
+  const circumference = 2 * Math.PI * r;
+  const fillDash = (clamp(rate, 0, 100) / 100) * circumference;
+  const reqDash = (clamp(reqRate, 0, 100) / 100) * circumference;
+  const color = rate >= reqRate ? 'var(--success)' : rate >= reqRate * 0.7 ? 'var(--warning)' : 'var(--danger)';
+  const diff = current - requiredByToday;
+  return (
+    <div className="donut-container">
+      <svg width={size} height={size} viewBox="0 0 120 120">
+        <circle cx="60" cy="60" r={r} fill="none" stroke="var(--donut-track)" strokeWidth="12"/>
+        {reqRate > 0 && (
+          <circle cx="60" cy="60" r={r} fill="none" stroke="var(--border)" strokeWidth="12"
+            strokeDasharray={`${reqDash} ${circumference}`} strokeLinecap="round"
+            transform="rotate(-90 60 60)" opacity="0.4"/>
+        )}
+        <circle cx="60" cy="60" r={r} fill="none" stroke={color} strokeWidth="12"
+          strokeDasharray={`${fillDash} ${circumference}`} strokeLinecap="round"
+          transform="rotate(-90 60 60)" style={{transition:'stroke-dasharray 0.8s ease'}}/>
+        <text x="60" y="55" textAnchor="middle" fill="var(--text-primary)" fontSize="18" fontWeight="700">{rate}%</text>
+        <text x="60" y="70" textAnchor="middle" fill="var(--text-muted)" fontSize="9">受注進捗</text>
+      </svg>
+      <div className="donut-stats">
+        <div className="donut-stat">
+          <span className="donut-stat-label">目標金額</span>
+          <span className="donut-stat-value">{fmtYen(target)}</span>
+        </div>
+        <div className="donut-stat">
+          <span className="donut-stat-label">本日必要額</span>
+          <span className="donut-stat-value">{fmtYen(requiredByToday)}</span>
+        </div>
+        <div className="donut-stat">
+          <span className="donut-stat-label">現状金額</span>
+          <span className="donut-stat-value" style={{color}}>{fmtYen(current)}</span>
+        </div>
+        <div className="separator"/>
+        <div className="donut-stat">
+          <span className="donut-stat-label">必要ペース差</span>
+          <span className="donut-stat-value" style={{color: diff >= 0 ? 'var(--success)' : 'var(--danger)'}}>
+            {diff >= 0 ? '+' : ''}{fmtYen(diff)}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ====== FUNNEL CHART (SVG) ======
+function FunnelChart({ data }) {
+  const max = data[0]?.value || 1;
+  const W = 200, minW = 40, barH = 28, gap = 4;
+  const totalH = data.length * (barH + gap);
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${totalH}`} style={{overflow:'visible'}}>
+      {data.map((d, i) => {
+        const w = minW + (W - minW) * (d.value / max);
+        const x = (W - w) / 2;
+        const y = i * (barH + gap);
+        const retentionRate = Math.round((d.value / max) * 100);
+        return (
+          <g key={i}>
+            <rect x={x} y={y} width={w} height={barH}
+              fill={`var(--funnel-fill)`} opacity={1 - i * 0.08} rx="3"/>
+            <text x={W/2} y={y + barH/2 + 1} textAnchor="middle"
+              fill="white" fontSize="10" fontWeight="600" dominantBaseline="middle">
+              {d.label} {d.value}件
+            </text>
+            <text x={x + w + 6} y={y + barH/2 + 1} textAnchor="start"
+              fill="var(--text-muted)" fontSize="9" dominantBaseline="middle">
+              {retentionRate}%
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+// ====== LINE CHART (SVG) ======
+function LineChart({ datasets, labels, height = 140 }) {
+  const W = 320, H = height, padL = 36, padR = 10, padT = 10, padB = 28;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+  const allVals = datasets.flatMap(d => d.data);
+  const maxV = Math.max(...allVals, 1);
+  const xs = labels.map((_, i) => padL + (i / (labels.length - 1)) * chartW);
+  const ys = (data) => data.map(v => padT + chartH - (v / maxV) * chartH);
+  const pathD = (data) => {
+    const pts = xs.map((x, i) => ({ x, y: ys(data)[i] }));
+    return pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  };
+  const colors = ['var(--chart-1)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-2)', 'var(--chart-5)'];
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`}>
+      {[0, 0.25, 0.5, 0.75, 1].map((t, i) => {
+        const y = padT + chartH - t * chartH;
+        return (
+          <g key={i}>
+            <line x1={padL} y1={y} x2={W - padR} y2={y} stroke="var(--border)" strokeWidth="1"/>
+            <text x={padL - 4} y={y + 1} textAnchor="end" fill="var(--text-muted)" fontSize="8" dominantBaseline="middle">
+              {Math.round(maxV * t)}
+            </text>
+          </g>
+        );
+      })}
+      {labels.map((l, i) => (
+        <text key={i} x={xs[i]} y={H - padB + 12} textAnchor="middle"
+          fill="var(--text-muted)" fontSize="8">{l}</text>
+      ))}
+      {datasets.map((ds, di) => (
+        <path key={di} d={pathD(ds.data)}
+          fill="none" stroke={colors[di]} strokeWidth="2" strokeLinejoin="round"/>
+      ))}
+      {datasets.map((ds, di) => 
+        xs.map((x, i) => (
+          <circle key={`${di}-${i}`} cx={x} cy={ys(ds.data)[i]} r="3"
+            fill={colors[di]} stroke="var(--bg-card)" strokeWidth="2"/>
+        ))
+      )}
+      <g transform={`translate(${padL},${H})`}>
+        {datasets.map((ds, di) => (
+          <g key={di} transform={`translate(${di * 70}, 0)`}>
+            <line x1="0" y1="0" x2="12" y2="0" stroke={colors[di]} strokeWidth="2"/>
+            <text x="15" y="1" fill="var(--text-muted)" fontSize="8" dominantBaseline="middle">{ds.label}</text>
+          </g>
+        ))}
+      </g>
+    </svg>
+  );
+}
+
+// ====== HORIZONTAL BAR CHART ======
+function HBarChart({ data, valueFormatter }) {
+  const max = Math.max(...data.map(d => d.value), 1);
+  return (
+    <div style={{display:'flex', flexDirection:'column', gap:'6px'}}>
+      {data.map((d, i) => {
+        const pct = (d.value / max) * 100;
+        return (
+          <div key={i} style={{display:'flex', alignItems:'center', gap:'8px'}}>
+            <div style={{width:'72px', fontSize:'15px', color:'var(--text-secondary)', textAlign:'right', flexShrink:0}}>{d.label}</div>
+            <div style={{flex:1, height:'16px', background:'var(--border)', borderRadius:'3px', overflow:'hidden'}}>
+              <div style={{
+                width:`${pct}%`, height:'100%',
+                background: d.color || 'var(--bar-fill)',
+                borderRadius:'3px', transition:'width 0.6s ease',
+                display:'flex', alignItems:'center', justifyContent:'flex-end', paddingRight:'4px'
+              }}>
+                {pct > 25 && <span style={{fontSize:'11px', color:'white', fontWeight:'600'}}>{valueFormatter ? valueFormatter(d.value) : d.value}</span>}
+              </div>
+            </div>
+            {pct <= 25 && <span style={{fontSize:'14px', color:'var(--text-secondary)', minWidth:'40px'}}>{valueFormatter ? valueFormatter(d.value) : d.value}</span>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ====== STATUS BADGE ======
+function StatusBadge({ status }) {
+  return (
+    <span className="status-badge" style={{
+      background: getStatusBg(status),
+      color: getStatusColor(status),
+    }}>{status}</span>
+  );
+}
+
+// ====== PROGRESS TABLE COMPONENT ======
+function ProgressTableSection({ data, showTodayTarget, isCurrentMonth = true }) {
+  // 本日時点での必要数値を計算
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const dayOfMonth = now.getDate();
+  const todayRatio = dayOfMonth / daysInMonth;
+
+  return (
+    <table className="progress-table">
+      <thead>
+        <tr>
+          <th>ステージ</th>
+          <th className="num" style={{color:'var(--text-muted)'}}>目標</th>
+          {showTodayTarget && <th className="num" style={{color:'var(--accent)'}}>{isCurrentMonth ? '本日目標' : '月末目標'}</th>}
+          <th className="num">実績</th>
+          {showTodayTarget && <th className="num" style={{color:'var(--accent)'}}>{isCurrentMonth ? '日次達成率' : '月末達成率'}</th>}
+          <th className="num">全体達成率</th>
+          <th style={{width:'120px'}}>進捗</th>
+        </tr>
+      </thead>
+      <tbody>
+        {data.map((row, i) => {
+          const lb = !!row.lowerIsBetter;
+          const totalRate = pct(row.actual, row.target);
+          const todayTarget = showTodayTarget ? Math.ceil(row.target * todayRatio) : null;
+          const todayRate = showTodayTarget ? pct(row.actual, todayTarget) : null;
+          const totalColor = lb
+            ? (totalRate <= 50 ? 'var(--success)' : totalRate <= 80 ? 'var(--warning)' : 'var(--danger)')
+            : (totalRate >= 90 ? 'var(--success)' : totalRate >= 60 ? 'var(--warning)' : 'var(--danger)');
+          const todayColor = todayRate == null ? null : lb
+            ? (todayRate <= 50 ? 'var(--success)' : todayRate <= 80 ? 'var(--warning)' : 'var(--danger)')
+            : (todayRate >= 100 ? 'var(--success)' : todayRate >= 70 ? 'var(--warning)' : 'var(--danger)');
+          const barColor = lb ? (totalRate <= 50 ? 'var(--success)' : totalRate <= 80 ? 'var(--warning)' : 'var(--danger)') : totalColor;
+          return (
+            <tr key={i} style={lb ? {background:'var(--bg-hover)'} : {}}>
+              <td style={{fontWeight:'500'}}>
+                {row.stage}{lb ? ' ↓' : ''}
+                {row.carryOver > 0 && row.stage === '承諾' && (
+                  <span style={{fontSize:'11px',color:'var(--accent)',marginLeft:'4px',fontWeight:'400'}}>（うち持越{row.carryOver}件）</span>
+                )}
+              </td>
+              <td className="num" style={{color:'var(--text-muted)'}}>{row.target}{lb ? '以下' : ''}</td>
+              {showTodayTarget && <td className="num" style={{color:'var(--accent)', fontWeight:'600'}}>{todayTarget}</td>}
+              <td className="num" style={{fontWeight:'700'}}>{row.actual}</td>
+              {showTodayTarget && (
+                <td className="num" style={{color:todayColor, fontWeight:'700'}}>
+                  {todayRate}%
+                </td>
+              )}
+              <td className="num" style={{color:totalColor, fontWeight:'700'}}>{totalRate}%</td>
+              <td>
+                <div className="stage-bar">
+                  <div className="stage-bar-fill" style={{width:`${clamp(totalRate,0,100)}%`, background:barColor}} />
+                </div>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+
+// ====== INDIVIDUAL DASHBOARD APP ======
+// 管理者が設定した目標を localStorage から読み込む
+let CA_MY_NAME = 'テストCA'; // テストモード固定
+const _DR = { firstInterview:80, bridge:50, proposal:75, recommendation:60, companyInterview:67, offer:50, acceptance:50 };
+function _readGoals() {
+  try {
+    const allGoals = JSON.parse(localStorage.getItem('test-crm-goals')||'{}');
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    return allGoals[`${CA_MY_NAME}_${monthKey}`] || allGoals[CA_MY_NAME] || null;
+  } catch { return null; }
+}
+// 目標値は _calcRealMetrics() 内で動的に計算されます
+
+const TREND_DATA = {
+  labels: ['4/1', '4/8', '4/15', '4/22', '4/29', '5/6'],
+  datasets: [
+    { label: '応募', data: [3, 7, 11, 15, 19, 21] },
+    { label: '面接設定', data: [2, 5, 8, 11, 14, 16] },
+    { label: '内定', data: [0, 0, 1, 1, 2, 2] },
+  ],
+};
+
+// リアルデータからKPI指標を計算するヘルパー関数
+// period: "YYYY/MM" 形式（例 "2026/05"）。指定された月の firstInterviewDate を持つ候補者のみ集計。
+function _calcRealMetrics(candidates, period) {
+  // 各ステージを「アクションが発生した月」でカウントする方式
+  // 例：4月推薦→5月企業面接 の人は 推薦=4月カウント、企業面接=5月カウント
+  const periodKey = period ? period.replace('/', '-') : null;
+  const pk = periodKey; // e.g., "2026-04"
+
+  const DR = { firstInterview:80, bridge:50, proposal:75, recommendation:60, companyInterview:67, offer:50, acceptance:50 };
+  let goals = null;
+  try {
+    const allGoals = JSON.parse(localStorage.getItem('test-crm-goals')||'{}');
+    const now = new Date();
+    const monthKey = pk || `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    goals = allGoals[`${CA_MY_NAME}_${monthKey}`] || allGoals[CA_MY_NAME] || null;
+  } catch {}
+  const gs = goals?.settings || 25;
+  const gr = goals?.rates || DR;
+
+  // 目標値を計算（gs=面接設定目標, gFI=初回面接目標）
+  const gFI  = Math.round(gs  * (gr.firstInterview   || 80) / 100);
+  const gBR  = Math.round(gFI  * (gr.bridge           || 50) / 100);
+  const gPR  = Math.round(gBR  * (gr.proposal         || 75) / 100);
+  const gREC = Math.round(gPR  * (gr.recommendation   || 60) / 100);
+  const gCI  = Math.round(gREC * (gr.companyInterview || 67) / 100);
+  const gOF  = Math.round(gCI  * (gr.offer            || 50) / 100);
+  const gAC  = Math.round(gOF  * (gr.acceptance       || 50) / 100);
+  const gFly = Math.max(1, Math.round(gFI * 0.15));
+
+  const _todayStr = new Date().toISOString().slice(0, 10);
+
+  // ─── 各ステージを日付フィールドでカウント（全候補者を対象） ───
+
+  // 面接設定: createdAt（登録日）がこの月
+  const aFI = pk
+    ? candidates.filter(c => (c.createdAt||c.firstInterviewDate||'').slice(0,7) === pk).length
+    : candidates.length;
+
+  // 初回面接: firstInterviewDate がこの月 かつ 過去（≤今日）かつ 面接設定でない（未実施でない）
+  const aINT = pk
+    ? candidates.filter(c => {
+        const fid = (c.firstInterviewDate||'').slice(0,10);
+        const st = c.caStatus||c.status;
+        return fid.startsWith(pk) && fid <= _todayStr && st !== '面接設定' && st !== '飛び(辞退)';
+      }).length
+    : candidates.filter(c => { const st=c.caStatus||c.status; return !!c.firstInterviewDate && st !== '面接設定' && st !== '飛び(辞退)'; }).length;
+
+  // 飛び+辞退: firstInterviewDate がこの月 かつ 飛び(辞退)
+  const aFly = pk
+    ? candidates.filter(c => {
+        const fid = (c.firstInterviewDate||'').slice(0,10);
+        return fid.startsWith(pk) && fid <= _todayStr && (c.caStatus||c.status) === '飛び(辞退)';
+      }).length
+    : candidates.filter(c => (c.caStatus||c.status) === '飛び(辞退)').length;
+
+  // ブリッジ成功: bridgeDate がこの月 かつ bridgeResult='成功'
+  const aBR = pk
+    ? candidates.filter(c => {
+        const bd = (c.bridgeDate||'').slice(0,10);
+        return bd.startsWith(pk) && bd <= _todayStr && c.bridgeResult === '成功';
+      }).length
+    : candidates.filter(c => c.bridgeResult === '成功').length;
+
+  // 企業提案: proposalDate がこの月
+  const aPR = pk
+    ? candidates.filter(c => {
+        const pd = (c.proposalDate||'').slice(0,10);
+        return pd.startsWith(pk) && pd <= _todayStr;
+      }).length
+    : candidates.filter(c => !!c.proposalDate).length;
+
+  // 推薦: recommendationDate がこの月
+  const aREC = pk
+    ? candidates.filter(c => {
+        const rd = (c.recommendationDate||'').slice(0,10);
+        return rd.startsWith(pk) && rd <= _todayStr;
+      }).length
+    : candidates.filter(c => !!c.recommendationDate).length;
+
+  // 企業面接: companyInterviewDate がこの月（専用フィールド）
+  const aCI = pk
+    ? candidates.filter(c => {
+        const cd = (c.companyInterviewDate||'').slice(0,10);
+        return cd.startsWith(pk) && cd <= _todayStr;
+      }).length
+    : candidates.filter(c => !!c.companyInterviewDate).length;
+
+  // 内定: offerDate がこの月
+  const aOF = pk
+    ? candidates.filter(c => {
+        const od = (c.offerDate||'').slice(0,10);
+        return od.startsWith(pk) && od <= _todayStr;
+      }).length
+    : candidates.filter(c => !!c.offerDate).length;
+
+  // 承諾: crm-accepted の acceptedAt がこの月
+  let aAC = 0;
+  let aCO_AC = 0;
+  try {
+    const _allAcc = JSON.parse(localStorage.getItem('test-crm-accepted') || '[]');
+    const myAcc = _allAcc.filter(a => a.assignedCA === CA_MY_NAME);
+    if (pk) {
+      const thisAcc = myAcc.filter(a => {
+        const ad = (a.acceptedAt||'').slice(0,10);
+        return ad.startsWith(pk) && ad <= _todayStr;
+      });
+      aAC = thisAcc.length;
+      // 持ち越し承諾: 今月承諾 AND firstInterviewDate が前月以前
+      aCO_AC = thisAcc.filter(a => {
+        const cand = candidates.find(c => c.id === a.id);
+        const fid = (cand?.firstInterviewDate || '').slice(0, 7);
+        return fid && fid < pk;
+      }).length;
+    } else {
+      aAC = myAcc.length;
+    }
+  } catch {}
+
+  // 有効候補者数（登録月の候補者のうち飛び以外）
+  const ENDED_ST = ['飛び(辞退)', '見送り'];
+  const aVA = pk
+    ? candidates.filter(c => (c.createdAt||c.firstInterviewDate||'').slice(0,7) === pk && !ENDED_ST.includes(c.caStatus||c.status)).length
+    : candidates.filter(c => !ENDED_ST.includes(c.caStatus||c.status)).length;
+
+  // 飛び率計算（初回+飛び の合計を分母）
+  const flyDenom = aINT + aFly;
+  const pastFly = aFly;
+  const flyRateToday = flyDenom > 0 ? Math.round(aFly / flyDenom * 100) : 0;
+
+  const kpi = {
+    validApplications:  { value: aVA,  target: null },
+    interviewSet:       { value: aFI,  target: gs   },
+    flyDropout:         { value: aFly, target: gFly, lowerIsBetter: true },
+    initialInterview:   { value: aINT, target: gFI  },
+    bridgeSuccess:      { value: aBR,  target: gBR  },
+    proposal:           { value: aPR,  target: gPR  },
+    recommendation:     { value: aREC, target: gREC },
+    companyInterview:   { value: aCI,  target: gCI  },
+    offer:              { value: aOF,  target: gOF  },
+    acceptance:         { value: aAC,  target: gAC  },
+  };
+
+  const stageProgress = [
+    { stage: '面接設定',    actual: aFI,  target: gs,   lowerIsBetter: false },
+    { stage: '飛び+辞退',  actual: aFly, target: gFly, lowerIsBetter: true  },
+    { stage: '初回面接',    actual: aINT, target: gFI,  lowerIsBetter: false },
+    { stage: 'ブリッジ成功', actual: aBR,  target: gBR,  lowerIsBetter: false },
+    { stage: '企業提案',    actual: aPR,  target: gPR,  lowerIsBetter: false },
+    { stage: '推薦',        actual: aREC, target: gREC, lowerIsBetter: false },
+    { stage: '企業面接',    actual: aCI,  target: gCI,  lowerIsBetter: false },
+    { stage: '内定',        actual: aOF,  target: gOF,  lowerIsBetter: false },
+    { stage: '承諾',        actual: aAC,  target: gAC,  lowerIsBetter: false, carryOver: aCO_AC },
+  ];
+
+  const rateKpis = [
+    // 飛び率：飛び ÷ (初回面接 + 飛び) × 100
+    { label: '飛び率',     value: flyRateToday,
+      target: 15,  numerator: pastFly, denominator: flyDenom, lowerIsBetter: true,
+      denominatorLabel: `初回+飛び(${flyDenom}件)` },
+    // ブリッジ率：初回面接 → ブリッジ成功
+    { label: 'ブリッジ率', value: aINT > 0 ? Math.round(aBR/aINT*100) : 0,
+      target: gr.bridge||50,       numerator: aBR,  denominator: aINT, lowerIsBetter: false },
+    // 企業提案率：ブリッジ成功 → 企業提案
+    { label: '企業提案率', value: aBR > 0 ? Math.round(aPR/aBR*100) : 0,
+      target: gr.proposal||75,     numerator: aPR,  denominator: aBR, lowerIsBetter: false },
+    // 推薦率：企業提案 → 推薦
+    { label: '推薦率',     value: aPR > 0 ? Math.round(aREC/aPR*100) : 0,
+      target: gr.recommendation||60, numerator: aREC, denominator: aPR, lowerIsBetter: false },
+    // 企業面接率：推薦 → 企業面接
+    { label: '企業面接率', value: aREC > 0 ? Math.round(aCI/aREC*100) : 0,
+      target: gr.companyInterview||67, numerator: aCI, denominator: aREC, lowerIsBetter: false },
+    // 内定率：企業面接 → 内定
+    { label: '内定率',     value: aCI > 0 ? Math.round(aOF/aCI*100) : 0,
+      target: gr.offer||50,        numerator: aOF,  denominator: aCI, lowerIsBetter: false },
+    // 承諾率：内定 → 承諾
+    { label: '承諾率',     value: aOF > 0 ? Math.round(aAC/aOF*100) : 0,
+      target: gr.acceptance||50,   numerator: aAC,  denominator: aOF, lowerIsBetter: false },
+  ];
+
+  const funnelData = [
+    { label: '面接設定', value: aFI },
+    { label: 'ブリッジ', value: aBR },
+    { label: '企業提案', value: aPR },
+    { label: '企業面接', value: aCI },
+    { label: '内定',     value: aOF },
+    { label: '承諾',     value: aAC },
+  ];
+
+  // 受注金額を crm-accepted から計算（period指定時はその月のものだけ）
+  let myAccepted = [];
+  try {
+    const _acc = JSON.parse(localStorage.getItem('test-crm-accepted') || '[]');
+    let _mine = _acc.filter(a => a.assignedCA === CA_MY_NAME);
+    if (pk) {
+      _mine = _mine.filter(a => {
+        const ad = (a.acceptedAt||'').slice(0,10);
+        return ad.startsWith(pk) && ad <= _todayStr;
+      });
+    }
+    myAccepted = _mine;
+  } catch {}
+  const _revCur = myAccepted.reduce((s, a) => s + (Number(a.contractAmount) || 0), 0);
+  const _revTgt = goals?.targets?.revenueTarget
+    || (goals?.targets?.acceptance ? goals.targets.acceptance * 500000 : null)
+    || (goals?.settings ? goals.settings * 500000 : 3000000);
+  // 本日必要額は当月のみ意味がある。過去月は月末時点で算出
+  const _now = new Date();
+  let _dayProgress, _daysInM;
+  if (periodKey) {
+    const [py, pm] = periodKey.split('-').map(Number);
+    _daysInM = new Date(py, pm, 0).getDate();
+    const isCurMonth = py === _now.getFullYear() && pm === (_now.getMonth() + 1);
+    _dayProgress = isCurMonth ? _now.getDate() : _daysInM;
+  } else {
+    _daysInM = new Date(_now.getFullYear(), _now.getMonth() + 1, 0).getDate();
+    _dayProgress = _now.getDate();
+  }
+  const revenue = {
+    current: _revCur,
+    target: _revTgt,
+    requiredByToday: Math.round(_revTgt * _dayProgress / _daysInM),
+  };
+
+  return { kpi, stageProgress, rateKpis, funnelData, settings: gs, revenue };
+}
+
+function _loadMyMetrics(period) {
+  try {
+    const stored = JSON.parse(localStorage.getItem('test-crm-candidates') || '[]');
+    const mine = Array.isArray(stored) ? stored.filter(c => c.assignedCA === CA_MY_NAME) : [];
+    return _calcRealMetrics(mine, period);
+  } catch { return _calcRealMetrics([], period); }
+}
+
+// 面接カード・提案中・対応事項をリアルデータから生成
+function _loadSummaryData() {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const tomorrowStr = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  const in7DaysStr = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+
+  let cands = [], plans = {}, accepted = [];
+  try {
+    const s = JSON.parse(localStorage.getItem('test-crm-candidates') || '[]');
+    cands = Array.isArray(s) ? s.filter(c => c.assignedCA === CA_MY_NAME) : [];
+  } catch {}
+  try { plans = JSON.parse(localStorage.getItem('test-crm-interview-plans') || '{}'); } catch {}
+  try { accepted = JSON.parse(localStorage.getItem('test-crm-accepted') || '[]'); } catch {}
+
+  // 本日の初回面接（firstInterviewDate が今日）
+  const interviewsFirstToday = cands
+    .filter(c => (c.firstInterviewDate || '').startsWith(todayStr))
+    .map(c => ({
+      name: c.name,
+      time: (c.firstInterviewDate || '').length > 10 ? c.firstInterviewDate.slice(11, 16) : '—',
+      type: '初回面接',
+    }));
+
+  // 本日の企業面接（crm-interview-plans の今日エントリ）
+  const interviewsToday = [];
+  Object.entries(plans).forEach(([cid, entries]) => {
+    const cand = cands.find(c => c.id === cid);
+    if (!cand) return;
+    (entries || []).forEach(e => {
+      if ((e.date || '').startsWith(todayStr)) {
+        // 書類選考中・面接確定返信待ちは今後の面接予定に含めない
+        if (e.selectionStatus === '書類選考中') return;
+        if (e.pendingConfirm) return;
+        // 終了済み（候補者側・選考側）は除外
+        const _cs = cand.caStatus || cand.status || '';
+        if (['飛び(辞退)','見送り','承諾'].includes(_cs)) return;
+        if (['選考辞退','書類お見送り','面接お見送り'].includes(e.selectionStatus)) return;
+        interviewsToday.push({
+          name: cand.name,
+          company: e.company || '—',
+          time: (e.date || '').length > 10 ? e.date.slice(11, 16) : '—',
+          type: e.selectionStatus || '企業面接',
+        });
+      }
+    });
+  });
+
+  // 今後7日の面接予定（明日〜7日後）
+  const interviewsUpcoming = [];
+  Object.entries(plans).forEach(([cid, entries]) => {
+    const cand = cands.find(c => c.id === cid);
+    if (!cand) return;
+    (entries || []).forEach(e => {
+      const d = (e.date || '').slice(0, 10);
+      if (d >= tomorrowStr && d <= in7DaysStr) {
+        // 書類選考中・面接確定返信待ちは今後の面接予定に含めない
+        if (e.selectionStatus === '書類選考中') return;
+        if (e.pendingConfirm) return;
+        // 終了済みは除外
+        const _cs2 = cand.caStatus || cand.status || '';
+        if (['飛び(辞退)','見送り','承諾'].includes(_cs2)) return;
+        if (['選考辞退','書類お見送り','面接お見送り'].includes(e.selectionStatus)) return;
+        interviewsUpcoming.push({
+          name: cand.name,
+          company: e.company || '—',
+          date: d.slice(5).replace('-', '/'),
+          type: e.selectionStatus || '企業面接',
+        });
+      }
+    });
+  });
+  interviewsUpcoming.sort((a, b) => a.date.localeCompare(b.date));
+
+  // 面接確定返信待ち
+  // ① 初回面接設定中で firstInterviewDate 未設定
+  const pendingReply = [
+    ...cands
+      .filter(c => (c.caStatus || c.status || '') === '面接設定' && !c.firstInterviewDate)
+      .map(c => {
+        const days = c.createdAt
+          ? Math.floor((Date.now() - new Date(c.createdAt).getTime()) / 86400000)
+          : 0;
+        return {
+          name: c.name,
+          memo: days > 2 ? `初回面接 確定返信待ち（${days}日経過）` : `初回面接 確定返信待ち`,
+          urgent: days > 2,
+        };
+      }),
+    // ② 企業面接管理で pendingConfirm がチェックされているエントリ
+    ...(() => {
+      const result = [];
+      Object.entries(plans).forEach(([cid, entries]) => {
+        const cand = cands.find(c => c.id === cid);
+        if (!cand) return;
+        const _cs3 = cand.caStatus || cand.status || '';
+        if (['飛び(辞退)','見送り','承諾'].includes(_cs3)) return; // 終了済み除外
+        (entries || []).forEach(e => {
+          if (['選考辞退','書類お見送り','面接お見送り'].includes(e.selectionStatus)) return;
+          if (e.pendingConfirm) {
+            const dateStr = e.date ? e.date.slice(5,10).replace('-','/') : '日時未確定';
+            result.push({
+              name: cand.name,
+              memo: `${e.company||'企業'} · ${dateStr} 面接確定返信待ち`,
+              urgent: true,
+            });
+          }
+        });
+      });
+      return result;
+    })(),
+  ];
+
+  // 企業提案中: ブリッジ成功以降・承諾/見送り/飛び(辞退)でない候補者
+  // 初回面接が終わった人は必ずブリッジ成功 or 終了になる（初回面接ステータスのまま止まることはない）
+  const PROP_ST = ['ブリッジ成功','企業提案','推薦','面接対策１','面接対策２','企業面接','内定'];
+  const proposalCandidates = cands.filter(c => {
+    const cs = c.caStatus || c.status || '';
+    return PROP_ST.includes(cs);
+  }).map(c => {
+    // 最新の提案企業をinterview plansから取得
+    const cpList = plans[c.id] || [];
+    const activeCompanies = cpList
+      .filter(cp => !['選考辞退','書類お見送り','面接お見送り'].includes(cp.selectionStatus||''))
+      .map(cp => cp.company || '').filter(Boolean);
+    const latestCompany = activeCompanies[activeCompanies.length - 1] || c.companyName || '—';
+    // 最新の日付（提案日→推薦日→企業面接日→内定日の順で最新を表示）
+    const stageDate = c.offerDate || c.companyInterviewDate || c.recommendationDate || c.proposalDate || c.bridgeDate || '';
+    return { ...c, _propCompany: latestCompany, _propDate: stageDate.slice(0,10) };
+  });
+
+  // 対応事項（ルールベースで自動生成）
+  const actions = [];
+  // 承諾期限アラート（カスタム日数対応）
+  const _tdStr = new Date().toISOString().slice(0,10);
+  Object.entries(plans).forEach(([cid, cpList]) => {
+    const cand = cands.find(c => c.id === cid);
+    if (!cand) return;
+    (cpList || []).forEach(cp => {
+      if (cp.selectionStatus === '内定' && cp.offerDeadline) {
+        const dl = cp.offerDeadline.slice(5).replace('-','/');
+        const daysLeft = Math.ceil((new Date(cp.offerDeadline) - new Date(_tdStr)) / 86400000);
+        const alertDays = cp.alertDays !== undefined ? Number(cp.alertDays) : 3;
+        if (daysLeft < 0) {
+          actions.push({ priority: '高', text: `${cand.name} — ${cp.company||''}  承諾期限超過（${dl}）`, due: '至急確認', urgent: true });
+        } else if (daysLeft <= alertDays) {
+          const dueLabel = daysLeft === 0 ? '本日期限' : daysLeft === 1 ? '明日まで' : `あと${daysLeft}日`;
+          actions.push({ priority: '高', text: `${cand.name} — ${cp.company||''}  承諾期限（${dl}）`, due: dueLabel, urgent: true });
+        }
+      }
+    });
+  });
+  cands.filter(c => (c.caStatus || c.status) === '内定').forEach(c => {
+    actions.push({ priority: '高', text: `${c.name} — 内定承諾確認連絡`, due: '本日中', urgent: true });
+  });
+  pendingReply.filter(p => p.urgent).forEach(p => {
+    actions.push({ priority: '高', text: `${p.name} — 返信督促`, due: '本日中', urgent: true });
+  });
+  cands.filter(c => (c.caStatus || c.status) === '初回面接').forEach(c => {
+    actions.push({ priority: '高', text: `${c.name} — ブリッジ確認・結果フォロー`, due: '今週中', urgent: false });
+  });
+  cands.filter(c => (c.caStatus || c.status) === 'ブリッジ成功').forEach(c => {
+    actions.push({ priority: '中', text: `${c.name} — 企業提案・求人紹介`, due: '今週中', urgent: false });
+  });
+  interviewsFirstToday.forEach(iv => {
+    actions.push({ priority: '中', text: `${iv.name} — 初回面接後ブリッジ確認`, due: '本日中', urgent: false });
+  });
+  accepted.filter(a => a.assignedCA === CA_MY_NAME && !a.joiningDate).forEach(a => {
+    actions.push({ priority: '低', text: `${a.name} — 承諾後入社準備確認`, due: '今週中', urgent: false });
+  });
+  if (actions.length === 0) {
+    actions.push({ priority: '低', text: '本日の対応事項はありません', due: '—', urgent: false });
+  }
+
+  return { interviewsFirstToday, interviewsToday, interviewsUpcoming, pendingReply, proposalCandidates, actions };
+}
+
+
+const NAV_ITEMS = [
+  { id: 'summary',    label: 'サマリー' },
+  { id: 'progress',   label: '目標進捗' },
+  { id: 'revenue',    label: '今月見込み' },
+  { id: 'interviews', label: '企業面接管理' },
+  { id: 'candidates', label: '担当一覧' },
+  { id: 'actions',    label: '対応事項' },
+  { id: 'postAccept', label: '承諾後管理' },
+  { id: 'trend',      label: '月別分析' },
+];
+
+const NAV_ICONS = {
+  summary: (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="1" y="8" width="3.5" height="6" rx="0.5"/>
+      <rect x="6.25" y="5" width="3.5" height="9" rx="0.5"/>
+      <rect x="11.5" y="2" width="3.5" height="12" rx="0.5"/>
+    </svg>
+  ),
+  progress: (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+      <circle cx="8" cy="8" r="6.5"/>
+      <circle cx="8" cy="8" r="3.5"/>
+      <circle cx="8" cy="8" r="1.2" fill="currentColor" stroke="none"/>
+    </svg>
+  ),
+  rate: (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="1,12 5,8 8,10 14,3"/>
+      <polyline points="10,3 14,3 14,7"/>
+    </svg>
+  ),
+  revenue: (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="8" cy="8" r="6.5"/>
+      <path d="M6 5.5 L10 5.5 Q11 5.5 11 7 Q11 8.5 8 8.5 Q11 8.5 11 10 Q11 11.5 9 11.5 L5.5 11.5"/>
+      <line x1="8" y1="4" x2="8" y2="5.5"/>
+      <line x1="8" y1="11.5" x2="8" y2="13"/>
+    </svg>
+  ),
+  interviews: (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="1.5" y="2.5" width="13" height="12" rx="1.5"/>
+      <line x1="1.5" y1="6.5" x2="14.5" y2="6.5"/>
+      <line x1="5" y1="1" x2="5" y2="4"/>
+      <line x1="11" y1="1" x2="11" y2="4"/>
+      <line x1="4.5" y1="10" x2="6.5" y2="10"/>
+      <line x1="9.5" y1="10" x2="11.5" y2="10"/>
+      <line x1="4.5" y1="12.5" x2="6.5" y2="12.5"/>
+    </svg>
+  ),
+  candidates: (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="5.5" cy="5" r="2.5"/>
+      <path d="M1 14 Q1 10 5.5 10 Q10 10 10 14"/>
+      <circle cx="12" cy="4.5" r="2" opacity="0.5"/>
+      <path d="M10 13.5 Q10.5 11 12 10.5 Q14 10 15 12" opacity="0.5"/>
+    </svg>
+  ),
+  actions: (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="2" width="10" height="12.5" rx="1.5"/>
+      <line x1="6.5" y1="6" x2="11" y2="6"/>
+      <line x1="6.5" y1="9" x2="11" y2="9"/>
+      <line x1="6.5" y1="12" x2="9" y2="12"/>
+      <polyline points="4,5.5 5,6.5 5.5,5"/>
+      <polyline points="4,8.5 5,9.5 5.5,8"/>
+      <polyline points="4,11.5 5,12.5 5.5,11"/>
+    </svg>
+  ),
+  postAccept: (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="8" y1="14" x2="8" y2="6"/>
+      <path d="M8 10 Q7 7.5 4.5 6.5 Q4.5 9.5 8 10"/>
+      <path d="M8 12.5 Q9 10 11.5 9 Q11.5 12 8 12.5"/>
+      <line x1="5.5" y1="14" x2="10.5" y2="14"/>
+    </svg>
+  ),
+  trend: (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="1.5" y="2.5" width="13" height="12" rx="1.5"/>
+      <line x1="1.5" y1="6.5" x2="14.5" y2="6.5"/>
+      <line x1="5" y1="1" x2="5" y2="4"/>
+      <line x1="11" y1="1" x2="11" y2="4"/>
+      <polyline points="3.5,11.5 6,9.5 9,11 12.5,9"/>
+    </svg>
+  ),
+  admin: (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="8" cy="8" r="2.5"/>
+      <path d="M8 1.5 L8 3 M8 13 L8 14.5 M1.5 8 L3 8 M13 8 L14.5 8 M3.6 3.6 L4.7 4.7 M11.3 11.3 L12.4 12.4 M12.4 3.6 L11.3 4.7 M4.7 11.3 L3.6 12.4"/>
+    </svg>
+  ),
+};
+
+function SummaryPage({ period }) {
+  const [metrics, setMetrics] = React.useState(() => _loadMyMetrics(period));
+  React.useEffect(() => {
+    setMetrics(_loadMyMetrics(period)); // 月変更時に即時更新
+    const reload = () => setMetrics(_loadMyMetrics(period));
+    window.addEventListener('focus', reload);
+    return () => window.removeEventListener('focus', reload);
+  }, [period]);
+  const MY_KPI = metrics.kpi;
+  const STAGE_PROGRESS = metrics.stageProgress;
+  const RATE_KPIS = metrics.rateKpis;
+  const FUNNEL_DATA = metrics.funnelData;
+  const MY_REVENUE = metrics.revenue || { current: 0, target: 3000000, requiredByToday: 0 };
+
+  const [summaryData, setSummaryData] = React.useState(_loadSummaryData);
+  React.useEffect(() => {
+    const reloadS = () => setSummaryData(_loadSummaryData());
+    window.addEventListener('focus', reloadS);
+    return () => window.removeEventListener('focus', reloadS);
+  }, []);
+  const { interviewsFirstToday: INTERVIEWS_FIRST_TODAY, interviewsToday: INTERVIEWS_TODAY,
+    interviewsUpcoming: INTERVIEWS_UPCOMING, pendingReply: PENDING_REPLY,
+    proposalCandidates, actions: ACTIONS } = summaryData;
+
+  const revenueRate = pct(MY_REVENUE.current, MY_REVENUE.target);
+  const revenueColor = revenueRate >= 90 ? 'var(--success)' : revenueRate >= 60 ? 'var(--warning)' : 'var(--danger)';
+  const now = new Date();
+  // period "2026/05" → year/month、なければ今月
+  const [selY, selM] = period ? period.split('/').map(Number) : [now.getFullYear(), now.getMonth()+1];
+  const daysInMonth = new Date(selY, selM, 0).getDate();
+  const isCurrentMonth = selY === now.getFullYear() && selM === (now.getMonth()+1);
+  const dayOfMonth = isCurrentMonth ? now.getDate() : daysInMonth;
+  const monthProgressPct = Math.round(dayOfMonth / daysInMonth * 100);
+  return (
+    <div style={{display:'flex', flexDirection:'column', gap:'14px'}}>
+      {/* 月次進捗バナー */}
+      <div style={{
+        background:'var(--accent-subtle)', border:'1px solid var(--accent-light)',
+        borderRadius:'var(--radius)', padding:'10px 16px',
+        display:'flex', alignItems:'center', gap:'12px', flexWrap:'wrap'
+      }}>
+        <span style={{fontSize:'15px', fontWeight:'700', color:'var(--accent)'}}>{selM}月 月次進捗</span>
+        <div style={{flex:'1',minWidth:'120px',height:'8px',background:'var(--border)',borderRadius:'4px',overflow:'hidden'}}>
+          <div style={{width:`${monthProgressPct}%`,height:'100%',background:'var(--accent)',borderRadius:'4px',transition:'width 0.4s'}}/>
+        </div>
+        <span style={{fontSize:'15px', fontWeight:'700', color:'var(--accent)', minWidth:'36px'}}>{monthProgressPct}%</span>
+        <span style={{fontSize:'14px', color:'var(--text-muted)'}}>{daysInMonth}日中{dayOfMonth}日経過</span>
+      </div>
+
+      {/* Row 0: 受注金額・達成率バナー（3枚） */}
+      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'10px'}}>
+        <div className="kpi-card" style={{'--kpi-color':'var(--chart-1)'}}>
+          <div className="kpi-label">受注金額</div>
+          <div className="kpi-value" style={{fontSize:'22px'}}>{fmtYen(MY_REVENUE.current)}</div>
+          <div className="kpi-target">目標: {fmtYen(MY_REVENUE.target)}</div>
+        </div>
+        <div className="kpi-card" style={{'--kpi-color':revenueColor}}>
+          <div className="kpi-label">達成率</div>
+          <div className="kpi-value" style={{fontSize:'28px', color:revenueColor}}>{revenueRate}%</div>
+          <div className="kpi-target">本日必要額: {fmtYen(MY_REVENUE.requiredByToday)}</div>
+        </div>
+        <div className="kpi-card" style={{'--kpi-color':'var(--chart-3)'}}>
+          <div className="kpi-label">承諾数</div>
+          <div className="kpi-value">{MY_KPI.acceptance.value}</div>
+          <div className="kpi-target">目標: {MY_KPI.acceptance.target}件</div>
+        </div>
+      </div>
+
+      {/* Row 1: Interviews (4列) */}
+      <div style={{display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'14px'}}>
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">本日の初回面接</div>
+            <span className="badge-count" style={{background:'var(--chart-2)'}}>{INTERVIEWS_FIRST_TODAY.length}</span>
+          </div>
+          <div className="card-body">
+            {INTERVIEWS_FIRST_TODAY.length === 0
+              ? <div className="empty-state">本日の初回面接なし</div>
+              : INTERVIEWS_FIRST_TODAY.map((iv, i) => (
+                <div key={i} className="interview-item">
+                  <div className="interview-dot" style={{background:'var(--chart-2)'}} />
+                  <div>
+                    <div className="interview-name">{iv.name}</div>
+                    <div className="interview-meta">{iv.time} · {iv.type}</div>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">本日の企業面接</div>
+            <span className="badge-count" style={{background:'var(--danger)'}}>{INTERVIEWS_TODAY.length}</span>
+          </div>
+          <div className="card-body">
+            {INTERVIEWS_TODAY.length === 0
+              ? <div className="empty-state">本日の面接なし</div>
+              : INTERVIEWS_TODAY.map((iv, i) => (
+                <div key={i} className="interview-item">
+                  <div className="interview-dot" style={{background:'var(--danger)'}} />
+                  <div>
+                    <div className="interview-name">{iv.name}</div>
+                    <div className="interview-meta">{iv.company} · {iv.time} · {iv.type}</div>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">今後の面接予定</div>
+            <span className="badge-count">{INTERVIEWS_UPCOMING.length}</span>
+          </div>
+          <div className="card-body">
+            {(() => {
+              const tomorrowFmt = new Date(Date.now() + 86400000).toISOString().slice(5,10).replace('-','/');
+              return INTERVIEWS_UPCOMING.map((iv, i) => {
+                const isTomorrow = iv.date === tomorrowFmt;
+                return (
+                  <div key={i} className="interview-item" style={isTomorrow ? {
+                    background:'#fff7ed', borderLeft:'3px solid #f97316',
+                    borderRadius:'6px', paddingLeft:'8px', marginBottom:'4px'
+                  } : {}}>
+                    <div className="interview-dot" style={{background: isTomorrow ? '#f97316' : 'var(--accent)'}} />
+                    <div>
+                      <div className="interview-name" style={isTomorrow ? {color:'#c2410c', fontWeight:'700'} : {}}>{iv.name}</div>
+                      <div className="interview-meta" style={isTomorrow ? {color:'#ea580c'} : {}}>{iv.company} · {iv.date} · {iv.type}</div>
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">面接確定返信待ち</div>
+            <span className="badge-count" style={{background:'var(--warning)'}}>{PENDING_REPLY.length}</span>
+          </div>
+          <div className="card-body">
+            {PENDING_REPLY.map((p, i) => (
+              <div key={i} className="interview-item">
+                <div className="interview-dot" style={{background: p.urgent ? 'var(--danger)' : 'var(--warning)'}} />
+                <div>
+                  <div className="interview-name">{p.name}</div>
+                  <div className="interview-meta" style={{color: p.urgent ? 'var(--danger)' : undefined}}>{p.memo}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Row 4: Proposals + Actions */}
+      <div className="grid-2">
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">📋 企業提案中</div>
+            <span className="badge-count">{proposalCandidates.length}</span>
+          </div>
+          <div className="card-body" style={{maxHeight:'180px', overflowY:'auto'}}>
+            {proposalCandidates.length === 0
+              ? <div className="empty-state">提案中の候補者なし</div>
+              : proposalCandidates.map((c, i) => (
+              <div key={i} className="interview-item">
+                <div className="interview-dot" style={{background: getStatusColor(c.caStatus || c.status)}} />
+                <div style={{flex:1}}>
+                  <div style={{display:'flex', justifyContent:'space-between'}}>
+                    <div className="interview-name">{c.name}</div>
+                    <StatusBadge status={c.caStatus || c.status} />
+                  </div>
+                  <div className="interview-meta">{c._propCompany} · {c._propDate || '—'}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">✅ 対応事項</div>
+            <span className="badge-count" style={{background:'var(--danger)'}}>{ACTIONS.filter(a=>a.urgent).length}</span>
+          </div>
+          <div className="card-body">
+            {ACTIONS.map((a, i) => (
+              <div key={i} className="action-item">
+                <span className="action-priority" style={{
+                  background: a.priority==='高' ? 'var(--danger-bg)' : a.priority==='中' ? 'var(--warning-bg)' : 'var(--info-bg)',
+                  color: a.priority==='高' ? 'var(--danger)' : a.priority==='中' ? 'var(--warning)' : 'var(--info)',
+                }}>{a.priority}</span>
+                <div>
+                  <div className="action-text">{a.text}</div>
+                  <div className="action-due">{a.due}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
+// CA管理ステータス（この順序でソート・表示）
+const CA_STATUS_ORDER = [
+  '面接設定','初回面接','ブリッジ成功','企業提案','推薦','面接対策１','面接対策２','企業面接','内定','見送り','承諾','飛び(辞退)'
+];
+const STATUS_OPTIONS = CA_STATUS_ORDER;
+const ENDED_STATUSES = []; // 飛び(辞退)は常時表示（非表示にしない）
+
+const COMPANY_OPTIONS = ['ネクトレンシス','ネクトレンジュ','EK','アチーブメント','ステップアディクション','リラコラ','インフルエンサーA社','テックスタート','グロースB社','スタートアップC','コラーニング','デザインD社','マーケE社','セールスF社','エンジニアG社','クリエイターH社','ビジネスI社','コンサルJ社','フィンテックK社','ヘルスL社','エドテックM社','ロジスティクスN社','リテールO社','メディアP社','イベントQ社','フードR社','トラベルS社','ファッションT社','ビューティーU社','スポーツV社','ゲームW社','アニメX社','音楽Y社','映像Z社','教育AA社','医療BB社','法律CC社','会計DD社','不動産EE社','建設FF社'];
+const JOB_TYPE_OPTIONS = ['営業','ITエンジニア','Webデザイナー','Webクリエイター','システムエンジニア','マーケティング','人事','経理','コンサルタント','その他'];
+const INTERVIEW_RESULT_OPTIONS = ['未定','合格','見送り','内定','承諾'];
+const RESULT_TO_STATUS = { '合格': '企業面接', '内定': '内定', '承諾': '承諾' };
+const SELECTION_STATUS_OPTIONS = ['書類選考中','一次面接','二次面接','最終面接','選考結果待ち','オファー面談','内定','内定承諾','入社確定','選考辞退','書類お見送り','面接お見送り'];
+const COMPANY_PRESETS = [
+  'SSE','SSE（ミドル）','日研トータルソーシング','BREXA','OANE',
+  'リクルートR＆D C求人','リクルートR＆D B求人','ワールドインテック(テクノ事業部)',
+  'エイジェック','テクノサービス(製造)','セントラルエンジニアリング','テクノスマイル',
+  'ウォルオブワーク','オープンアップITエンジニア','リクルート情報','ALH','夢真',
+  '共同エンジニアリング','ワールドコーポレーション','アーキジャパン','ライズ',
+  'オープンアップコンストラクション','JAGフィールド','ウィルオブコンストラクション',
+  'IDOM','大東建託','大同生命','日本交通','マーキュリー','NECT','GREEN RIBON',
+  'アドバンサー','アルティウスリンク（KDDI）','ソフトバンク','ミラエール',
+  'キャリアウィンク','マンパワー M-shine','マイナビワークス','テクノ・サービス',
+  'UTエイム株式会社','株式会社アウトソーシング',
+];
+const JOB_TYPE_PRESETS = ['機械','IT','施工管理','事務','営業','接客・販売','製造','IT事務'];
+const PROSPECT_RANK_OPTIONS = ['30%','50%','70%','100%'];
+
+function CandidatesPage() {
+  const [search, setSearch] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState('全て');
+  const [showEnded, setShowEnded] = React.useState(false);
+  const [sortKey, setSortKey] = React.useState('createdAt');
+  const [sortDir, setSortDir] = React.useState('desc');
+
+  const loadMyCandidates = () => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('test-crm-candidates') || 'null');
+      if (stored && Array.isArray(stored)) {
+        return stored.filter(c => c.assignedCA === CA_MY_NAME);
+      }
+    } catch {}
+    return [];
+  };
+  const [candidates, setCandidates] = React.useState(loadMyCandidates);
+
+  // フォーカス時に最新データを再読み込み
+  React.useEffect(() => {
+    const handleFocus = () => setCandidates(loadMyCandidates());
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
+
+  const loadInterviewPlans = () => {
+    try { return JSON.parse(localStorage.getItem('test-crm-interview-plans') || '{}'); } catch { return {}; }
+  };
+  const [interviewPlans] = React.useState(loadInterviewPlans);
+
+  const getEarliestInterview = (cid) => {
+    const plans = interviewPlans[cid] || [];
+    const dates = plans.map(p => (p.date || '').substring(0,10)).filter(Boolean).sort();
+    return dates[0] || null;
+  };
+
+  const handleInlineStatus = (id, newStatus) => {
+    const updated = candidates.map(c => c.id === id ? {...c, status: newStatus} : c);
+    setCandidates(updated);
+    try {
+      const stored = JSON.parse(localStorage.getItem('test-crm-candidates') || '[]');
+      const merged = stored.map(c => c.id === id ? {...c, status: newStatus} : c);
+      localStorage.setItem('test-crm-candidates', JSON.stringify(merged));
+    } catch {}
+  };
+
+  const handleInlineField = (id, field, value) => {
+    const updated = candidates.map(c => c.id === id ? {...c, [field]: value} : c);
+    setCandidates(updated);
+    try {
+      const stored = JSON.parse(localStorage.getItem('test-crm-candidates') || '[]');
+      const merged = stored.map(c => c.id === id ? {...c, [field]: value} : c);
+      localStorage.setItem('test-crm-candidates', JSON.stringify(merged));
+    } catch {}
+  };
+
+  const handleEndedToggle = (c) => {
+    const newEnded = !c.ended;
+    // 終了にするとき endedAt（YYYY-MM）を記録。解除するときはクリア。
+    const now = new Date();
+    const endedAt = newEnded
+      ? `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`
+      : null;
+    const changes = { ended: newEnded, endedAt };
+    const updated = candidates.map(x => x.id === c.id ? {...x, ...changes} : x);
+    setCandidates(updated);
+    try {
+      const stored = JSON.parse(localStorage.getItem('test-crm-candidates') || '[]');
+      const merged = stored.map(x => x.id === c.id ? {...x, ...changes} : x);
+      localStorage.setItem('test-crm-candidates', JSON.stringify(merged));
+    } catch {}
+  };
+
+  // 当月（YYYY-MM）
+  const currentMonth = (() => {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;
+  })();
+
+  const statuses = ['全て', ...new Set(candidates.map(c => c.status))];
+  const filtered = React.useMemo(() => {
+    let data = [...candidates];
+    // 終了済み候補者：endedAt が当月の場合のみ表示（翌月以降は非表示）
+    data = data.filter(c => {
+      if (!c.ended) return true;
+      // endedAt がない古いデータは当月扱いで表示（今月中は見える）
+      const ea = c.endedAt || currentMonth;
+      return ea === currentMonth;
+    });
+    if (search) data = data.filter(c => c.name.includes(search) || (c.companyName||'').includes(search) || (c.sourceCompany||'').includes(search));
+    if (statusFilter !== '全て') data = data.filter(c => c.status === statusFilter);
+    data.sort((a, b) => {
+      // 終了済みは常に下へ
+      if (!!a.ended !== !!b.ended) return a.ended ? 1 : -1;
+      if (sortKey === 'status') {
+        const ai = CA_STATUS_ORDER.indexOf(a.status);
+        const bi = CA_STATUS_ORDER.indexOf(b.status);
+        return sortDir === 'asc' ? (ai===-1?999:ai)-(bi===-1?999:bi) : (bi===-1?999:bi)-(ai===-1?999:ai);
+      }
+      let va = a[sortKey] ?? '', vb = b[sortKey] ?? '';
+      if (typeof va === 'number') return sortDir === 'asc' ? va - vb : vb - va;
+      return sortDir === 'asc' ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+    });
+    return data;
+  }, [search, statusFilter, sortKey, sortDir, candidates]);
+
+  const handleSort = (key) => {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir('asc'); }
+  };
+  const sortIcon = (key) => sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
+
+  const todayDateStr = new Date().toISOString().slice(0, 10);
+
+  return (
+    <div className="card">
+      <div className="card-header">
+        <div className="card-title">担当求職者一覧 <span className="text-muted" style={{fontWeight:'400'}}>({filtered.length}件)</span></div>
+        <div style={{display:'flex', gap:'8px', alignItems:'center'}}>
+          <input className="search-input" placeholder="名前・企業名で検索..." value={search} onChange={e=>setSearch(e.target.value)} />
+          <select className="filter-select" value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}>
+            {statuses.map(s => <option key={s}>{s}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="data-table-wrap" style={{maxHeight:'calc(100vh - 180px)', overflowX:'auto'}}>
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th onClick={()=>handleSort('name')} style={{cursor:'pointer'}}>氏名{sortIcon('name')}</th>
+              <th style={{minWidth:'130px', cursor:'pointer'}} onClick={()=>handleSort('status')}>ステータス{sortIcon('status')}</th>
+              <th onClick={()=>handleSort('firstInterviewDate')} style={{cursor:'pointer',whiteSpace:'nowrap'}}>初回面接{sortIcon('firstInterviewDate')}</th>
+              <th onClick={()=>handleSort('age')} style={{cursor:'pointer'}}>年齢{sortIcon('age')}</th>
+              <th onClick={()=>handleSort('jobType')} style={{cursor:'pointer'}}>職種{sortIcon('jobType')}</th>
+              <th onClick={()=>handleSort('sourceCompany')} style={{cursor:'pointer',whiteSpace:'nowrap'}}>流入企業{sortIcon('sourceCompany')}</th>
+              <th style={{whiteSpace:'nowrap'}}>企業提案日程</th>
+              <th style={{whiteSpace:'nowrap'}}>推薦</th>
+              <th style={{whiteSpace:'nowrap'}}>企業面接</th>
+              <th style={{textAlign:'center',width:'44px'}} title="終了チェックで案件を終了にする">終了</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((c) => {
+              const isEnded = !!c.ended;
+              const earliestIv = getEarliestInterview(c.id);
+              return (
+                <tr key={c.id} style={{opacity: isEnded ? 0.45 : 1, background: isEnded ? 'var(--bg-hover)' : ''}}>
+                  <td className="name" style={{color: isEnded ? 'var(--text-muted)' : ''}}>{c.name}</td>
+                  <td>
+                    <select
+                      className="filter-select"
+                      value={c.status}
+                      onChange={e => handleInlineStatus(c.id, e.target.value)}
+                      style={{minWidth:'120px', fontSize:'14px'}}
+                    >
+                      {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </td>
+                  <td style={{fontVariantNumeric:'tabular-nums', whiteSpace:'nowrap', textAlign:'center'}}>
+                    {(() => {
+                      const d = (c.firstInterviewDate || '').slice(0, 10);
+                      const isPast = d && d < todayDateStr;
+                      const isInterviewSet = (c.status === '面接設定' || c.status === '初回面接');
+                      const warn = isPast && isInterviewSet;
+                      return (
+                        <span style={{color: warn ? 'var(--danger)' : 'var(--text-secondary)', fontWeight: warn ? '700' : 'normal'}}>
+                          {warn && <span title="面接設定のまま日程が過ぎています" style={{marginRight:'3px'}}>⚠️</span>}
+                          {fmtMD(c.firstInterviewDate)}
+                        </span>
+                      );
+                    })()}
+                  </td>
+                  <td style={{textAlign:'center'}}>{c.age}</td>
+                  <td><span className="tag">{c.jobType}</span></td>
+                  <td style={{color:'var(--text-secondary)', fontSize:'14px', maxWidth:'100px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{c.sourceCompany || c.companyName || '—'}</td>
+                  <td style={{whiteSpace:'nowrap'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:'4px'}}>
+                      <input
+                        type="date"
+                        value={c.proposalDate || ''}
+                        onChange={e => handleInlineField(c.id, 'proposalDate', e.target.value)}
+                        style={{border:'1px solid var(--border)',borderRadius:'4px',padding:'2px 4px',fontSize:'15px',background:'var(--bg-base)',color:'var(--text-primary)',width:'110px'}}
+                      />
+                      {c.proposalDate && <span style={{fontSize:'15px',color:'var(--accent)',fontWeight:'600'}}>{fmtMD(c.proposalDate)}</span>}
+                    </div>
+                  </td>
+                  <td style={{whiteSpace:'nowrap'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:'4px'}}>
+                      <input
+                        type="date"
+                        value={c.recommendationDate || c.recommendedDate || ''}
+                        onChange={e => handleInlineField(c.id, 'recommendationDate', e.target.value)}
+                        style={{border:'1px solid var(--border)',borderRadius:'4px',padding:'2px 4px',fontSize:'15px',background:'var(--bg-base)',color:'var(--text-primary)',width:'110px'}}
+                      />
+                      {(c.recommendationDate || c.recommendedDate) && <span style={{fontSize:'15px',color:'var(--accent)',fontWeight:'600'}}>{fmtMD(c.recommendationDate || c.recommendedDate)}</span>}
+                    </div>
+                  </td>
+                  <td style={{textAlign:'center', fontVariantNumeric:'tabular-nums', color: earliestIv ? 'var(--accent)' : 'var(--text-muted)', fontWeight: earliestIv ? '600' : '400', whiteSpace:'nowrap'}}>
+                    {earliestIv ? fmtMD(earliestIv) : '—'}
+                  </td>
+                  <td style={{textAlign:'center'}}>
+                    <input type="checkbox" checked={isEnded} onChange={()=>handleEndedToggle(c)}
+                      title={isEnded ? '終了解除' : '終了にする'}
+                      style={{width:'15px',height:'15px',cursor:'pointer',accentColor:'var(--danger)'}}
+                    />
+                  </td>
+                </tr>
+              );
+            })}
+            {filtered.length === 0 && (
+              <tr><td colSpan={10} style={{textAlign:'center',padding:'32px',color:'var(--text-muted)'}}>該当する求職者がいません</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function ProgressPage({ period }) {
+  const [metrics, setMetrics] = React.useState(() => _loadMyMetrics(period));
+  React.useEffect(() => {
+    setMetrics(_loadMyMetrics(period)); // 月変更時に即時更新
+    const reload = () => setMetrics(_loadMyMetrics(period));
+    window.addEventListener('focus', reload);
+    return () => window.removeEventListener('focus', reload);
+  }, [period]);
+  const MY_KPI = metrics.kpi;
+  const STAGE_PROGRESS = metrics.stageProgress;
+  const RATE_KPIS = metrics.rateKpis;
+  const MY_REVENUE = metrics.revenue || { current: 0, target: 3000000, requiredByToday: 0 };
+  const now = new Date();
+  const [selY, selM] = period ? period.split('/').map(Number) : [now.getFullYear(), now.getMonth()+1];
+  const daysInMonth = new Date(selY, selM, 0).getDate();
+  const isCurrentMonth = selY === now.getFullYear() && selM === (now.getMonth()+1);
+  const dayOfMonth = isCurrentMonth ? now.getDate() : daysInMonth;
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:'14px'}}>
+      <div style={{
+        background:'var(--accent-subtle)', border:'1px solid var(--accent-light)',
+        borderRadius:'var(--radius)', padding:'10px 16px', fontSize:'14px', color:'var(--accent)',
+        display:'flex', alignItems:'center', gap:'8px'
+      }}>
+        <strong>{selM}月{isCurrentMonth ? dayOfMonth+'日時点' : '（確定値）'}</strong>
+        <span style={{color:'var(--text-secondary)'}}>— 月間 {daysInMonth} 日中 {dayOfMonth} 日経過（{Math.round(dayOfMonth/daysInMonth*100)}%）</span>
+        <span style={{color:'var(--text-muted)', fontSize:'15px', marginLeft:'4px'}}>{isCurrentMonth ? '「本日目標」= 月間目標 × 経過日数÷月間日数' : '「月末目標」= 月間目標（最終月実績）'}</span>
+      </div>
+
+      {/* 1段目: KPI進捗（ドーナツ9種） */}
+      <div className="card">
+        <div className="card-header">
+          <div className="card-title">KPI進捗</div>
+          <div className="card-subtitle" style={{marginLeft:'auto'}}>面接設定 → 承諾 の各ステージ</div>
+        </div>
+        <div className="card-body" style={{paddingTop:'8px'}}>
+          <div style={{display:'grid', gridTemplateColumns:'repeat(9,1fr)', gap:'10px'}}>
+            <DonutKPICard label="面接設定"    value={MY_KPI.interviewSet.value}      target={MY_KPI.interviewSet.target}      color="var(--chart-2)" monthRatio={dayOfMonth/daysInMonth} />
+            <DonutKPICard label="飛び+辞退"   value={MY_KPI.flyDropout.value}        target={MY_KPI.flyDropout.target}        color="var(--danger)"  monthRatio={dayOfMonth/daysInMonth} lowerIsBetter={true} />
+            <DonutKPICard label="初回面接"    value={MY_KPI.initialInterview.value}  target={MY_KPI.initialInterview.target}  color="var(--chart-4)" monthRatio={dayOfMonth/daysInMonth} />
+            <DonutKPICard label="ブリッジ成功" value={MY_KPI.bridgeSuccess.value}    target={MY_KPI.bridgeSuccess.target}     color="var(--chart-3)" monthRatio={dayOfMonth/daysInMonth} />
+            <DonutKPICard label="企業提案"    value={MY_KPI.proposal.value}          target={MY_KPI.proposal.target}          color="var(--chart-1)" monthRatio={dayOfMonth/daysInMonth} />
+            <DonutKPICard label="推薦"        value={MY_KPI.recommendation.value}    target={MY_KPI.recommendation.target}    color="#8b5cf6"        monthRatio={dayOfMonth/daysInMonth} />
+            <DonutKPICard label="企業面接"    value={MY_KPI.companyInterview.value}  target={MY_KPI.companyInterview.target}  color="var(--accent)"  monthRatio={dayOfMonth/daysInMonth} />
+            <DonutKPICard label="内定"        value={MY_KPI.offer.value}             target={MY_KPI.offer.target}             color="var(--chart-3)" monthRatio={dayOfMonth/daysInMonth} />
+            <DonutKPICard label="承諾"        value={MY_KPI.acceptance.value}        target={MY_KPI.acceptance.target}        color="var(--success)" monthRatio={dayOfMonth/daysInMonth} />
+          </div>
+        </div>
+      </div>
+
+      {/* 2段目: 率KPI */}
+      <div className="card">
+        <div className="card-header">
+          <div className="card-title">率KPI</div>
+          <div className="card-subtitle" style={{marginLeft:'auto'}}>転換率・飛び率 一覧</div>
+        </div>
+        <div className="card-body">
+          <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'10px'}}>
+            {RATE_KPIS.map((r, i) => <RateKPICard key={i} {...r} />)}
+          </div>
+        </div>
+      </div>
+
+      {/* ステージ別進捗テーブル */}
+      <div className="card">
+        <div className="card-header">
+          <div className="card-title">ステージ別進捗</div>
+          <div className="card-subtitle" style={{marginLeft:'auto'}}>{isCurrentMonth ? '青: 本日目標 / 全体達成率も表示' : '月次確定値'}</div>
+        </div>
+        <div className="card-body" style={{padding:'8px 0', overflowX:'auto'}}>
+          <ProgressTableSection data={STAGE_PROGRESS} showTodayTarget={true} isCurrentMonth={isCurrentMonth} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RevenuePage({ period }) {
+  const loadRevCandidates = () => {
+    try {
+      const s = JSON.parse(localStorage.getItem('test-crm-candidates') || '[]');
+      return Array.isArray(s) ? s.filter(c => c.assignedCA === CA_MY_NAME) : [];
+    } catch { return []; }
+  };
+  const [revCands, setRevCands] = React.useState(loadRevCandidates);
+  const [revMetrics, setRevMetrics] = React.useState(() => _loadMyMetrics(period));
+  React.useEffect(() => {
+    setRevCands(loadRevCandidates()); setRevMetrics(_loadMyMetrics(period)); // 月変更時に即時更新
+    const reload = () => { setRevCands(loadRevCandidates()); setRevMetrics(_loadMyMetrics(period)); };
+    window.addEventListener('focus', reload);
+    return () => window.removeEventListener('focus', reload);
+  }, [period]);
+  const MY_REVENUE = revMetrics.revenue || { current: 0, target: 3000000, requiredByToday: 0 };
+  const caStatus = c => c.caStatus || c.status || '';
+
+  // 見込みランクは「推薦」ステージ以降のみ対象
+  // ランクは企業面接管理で CA が手動設定（meta.rank）。未設定時はステージ別デフォルト
+  const loadRevMeta = () => { try { return JSON.parse(localStorage.getItem('test-crm-candidate-meta') || '{}'); } catch { return {}; } };
+  const loadRevPlans = () => { try { return JSON.parse(localStorage.getItem('test-crm-interview-plans') || '{}'); } catch { return {}; } };
+  const [revMeta] = React.useState(loadRevMeta);
+  const [revPlans] = React.useState(loadRevPlans);
+
+  // 選択月キー（"2026/05" → "2026-05"）
+  const periodKey = period ? period.replace('/', '-') : (() => {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;
+  })();
+
+  const FORECAST_ST = ['推薦','面接対策１','面接対策２','企業面接','企業面接1','企業面接2','内定','承諾'];
+  // ランク別一覧：選択月に面接日がある人のみ表示
+  const forecastCands = revCands.filter(c => {
+    if (!FORECAST_ST.includes(caStatus(c))) return false;
+    // その月に interview plans の date がある
+    const cpList = revPlans[c.id] || [];
+    return cpList.some(cp => (cp.date || '').startsWith(periodKey));
+  });
+  const getEffectiveRank = (c) => {
+    const mr = (revMeta[c.id] || {}).rank;
+    if (mr) return mr;
+    const cs = caStatus(c);
+    if (['承諾','内定'].includes(cs)) return '100%';
+    if (['企業面接','企業面接1','企業面接2','面接対策１','面接対策２'].includes(cs)) return '70%';
+    return '50%'; // 推薦 デフォルト
+  };
+  const rank100 = forecastCands.filter(c => getEffectiveRank(c) === '100%');
+  const rank70  = forecastCands.filter(c => getEffectiveRank(c) === '70%');
+  const rank50  = forecastCands.filter(c => getEffectiveRank(c) === '50%');
+  const rank30  = forecastCands.filter(c => getEffectiveRank(c) === '30%');
+  const rankData = [
+    { rank: '100%', items: rank100, weight: 1.0 },
+    { rank: '70%',  items: rank70,  weight: 0.7 },
+    { rank: '50%',  items: rank50,  weight: 0.5 },
+    { rank: '30%',  items: rank30,  weight: 0.3 },
+  ];
+  const totalWeighted = rankData.reduce((sum, r) => sum + r.items.reduce((s, c) => s + c.expectedRevenue * r.weight, 0), 0);
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:'14px'}}>
+      <div className="kpi-grid" style={{gridTemplateColumns:'repeat(4,1fr)'}}>
+        <div className="kpi-card" style={{'--kpi-color':'var(--chart-3)'}}>
+          <div className="kpi-label">承諾数</div>
+          <div className="kpi-value">{rank100.length}</div>
+          <div className="kpi-target">内定含む確定分</div>
+        </div>
+        <div className="kpi-card" style={{'--kpi-color':'var(--chart-1)'}}>
+          <div className="kpi-label">受注金額</div>
+          <div className="kpi-value" style={{fontSize:'20px'}}>{fmtYen(MY_REVENUE.current)}</div>
+          <div className="kpi-target">目標: {fmtYen(MY_REVENUE.target)}</div>
+        </div>
+        <div className="kpi-card" style={{'--kpi-color':'var(--chart-4)'}}>
+          <div className="kpi-label">見込み売上</div>
+          <div className="kpi-value" style={{fontSize:'20px'}}>{fmtYen(forecastCands.reduce((s,c)=>s+c.expectedRevenue,0))}</div>
+          <div className="kpi-target">全見込合計</div>
+        </div>
+        <div className="kpi-card" style={{'--kpi-color':'var(--chart-2)'}}>
+          <div className="kpi-label">加重見込み</div>
+          <div className="kpi-value" style={{fontSize:'20px'}}>{fmtYen(Math.round(totalWeighted))}</div>
+          <div className="kpi-target">確率加重平均</div>
+        </div>
+      </div>
+      <div className="grid-2">
+        <div className="card">
+          <div className="card-header"><div className="card-title">受注進捗ドーナツ</div></div>
+          <div className="card-body" style={{display:'flex',justifyContent:'center'}}>
+            <DonutChart target={MY_REVENUE.target} requiredByToday={MY_REVENUE.requiredByToday} current={MY_REVENUE.current} size={170} />
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-header"><div className="card-title">ランク別・求職者一覧</div></div>
+          <div className="card-body" style={{padding:'0'}}>
+            {rankData.map((r, i) => {
+              const rankColor = i===0?'var(--success)':i===1?'var(--accent)':i===2?'var(--chart-4)':'var(--text-muted)';
+              return r.items.length > 0 ? (
+                <div key={i} style={{borderBottom:'1px solid var(--border-light)', padding:'8px 16px'}}>
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'6px'}}>
+                    <span style={{fontWeight:'700', fontSize:'14px', color:rankColor}}>{r.rank} 確率</span>
+                    <span style={{fontSize:'15px', color:'var(--text-muted)'}}>計: {fmtYen(r.items.reduce((s,c)=>s+c.expectedRevenue,0))} → 加重: {fmtYen(Math.round(r.items.reduce((s,c)=>s+c.expectedRevenue*r.weight,0)))}</span>
+                  </div>
+                  {r.items.map((c, j) => (
+                    <div key={j} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'3px 0', fontSize:'14px'}}>
+                      <span style={{fontWeight:'500'}}>{c.name}</span>
+                      <div style={{display:'flex', gap:'8px', alignItems:'center'}}>
+                        <StatusBadge status={caStatus(c)} />
+                        <span style={{fontWeight:'700', color:'var(--success)', minWidth:'80px', textAlign:'right'}}>{fmtYen(c.expectedRevenue)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null;
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ActionsPage() {
+  const [actions, setActions] = React.useState(() => _loadSummaryData().actions);
+  React.useEffect(() => {
+    const reload = () => setActions(_loadSummaryData().actions);
+    window.addEventListener('focus', reload);
+    return () => window.removeEventListener('focus', reload);
+  }, []);
+  return (
+    <div className="card">
+      <div className="card-header">
+        <div className="card-title">対応事項一覧</div>
+        <span className="badge-count" style={{background:'var(--danger)'}}>{actions.filter(a=>a.urgent).length} 緊急</span>
+      </div>
+      <div className="card-body">
+        {actions.length === 0
+          ? <div className="empty-state">対応事項はありません</div>
+          : actions.map((a, i) => (
+          <div key={i} className="action-item" style={{padding:'10px 0'}}>
+            <span className="action-priority" style={{
+              background: a.priority==='高'?'var(--danger-bg)':a.priority==='中'?'var(--warning-bg)':'var(--info-bg)',
+              color: a.priority==='高'?'var(--danger)':a.priority==='中'?'var(--warning)':'var(--info)',
+            }}>{a.priority}</span>
+            <div style={{flex:1}}>
+              <div className="action-text">{a.text}</div>
+              <div className="action-due">期限: {a.due}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function InterviewsPage() {
+  const loadCandidates = () => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('test-crm-candidates') || '[]');
+      return Array.isArray(stored) ? stored.filter(c => c.assignedCA === CA_MY_NAME) : [];
+    } catch { return []; }
+  };
+  const loadPlans = () => { try { return JSON.parse(localStorage.getItem('test-crm-interview-plans') || '{}'); } catch { return {}; } };
+  const loadMeta = () => { try { return JSON.parse(localStorage.getItem('test-crm-candidate-meta') || '{}'); } catch { return {}; } };
+
+  const [candidates, setCandidates] = React.useState(loadCandidates);
+  React.useEffect(() => {
+    const reload = () => setCandidates(loadCandidates());
+    window.addEventListener('focus', reload);
+    return () => window.removeEventListener('focus', reload);
+  }, []);
+  const [plans, setPlans] = React.useState(loadPlans);
+  const [meta, setMeta] = React.useState(loadMeta);
+
+  const pipelineCandidates = React.useMemo(() =>
+    candidates.filter(c => {
+      const cs = c.caStatus || c.status || '';
+      return ['推薦','面接対策１','面接対策２','企業面接','企業面接1','企業面接2','選考中','内定','承諾'].includes(cs);
+    })
+  , [candidates]);
+
+  const savePlans = (newPlans) => {
+    setPlans(newPlans);
+    try { localStorage.setItem('test-crm-interview-plans', JSON.stringify(newPlans)); } catch {}
+  };
+  const saveMeta = (newMeta) => {
+    setMeta(newMeta);
+    try { localStorage.setItem('test-crm-candidate-meta', JSON.stringify(newMeta)); } catch {}
+  };
+
+  const addCompany = (cid) => {
+    savePlans({ ...plans, [cid]: [...(plans[cid] || []), { company: '', date: '', selectionStatus: '書類選考中', offerDeadline: '', pendingConfirm: false, alertDays: 3 }] });
+  };
+  const updateCompany = (cid, idx, field, value) => {
+    const arr = [...(plans[cid] || [])];
+    arr[idx] = { ...arr[idx], [field]: value };
+    savePlans({ ...plans, [cid]: arr });
+    if (field === 'selectionStatus') {
+      const companyName = arr[idx].company || '';
+      if (value === '内定承諾') {
+        // 内定承諾時に crm-accepted へ自動登録
+        try {
+          const acc = JSON.parse(localStorage.getItem('test-crm-accepted') || '[]');
+          const cand = candidates.find(c => c.id === cid);
+          if (cand) {
+            const alreadyExists = acc.some(a => a.id === cid && a.companyName === companyName);
+            if (!alreadyExists) {
+              const _today = new Date().toISOString().slice(0,10);
+              acc.push({
+                ...cand,
+                companyName,
+                acceptanceDate: _today,
+                acceptedAt: _today,
+                joiningDate: '',
+                contractAmount: '',
+                memo: cand.memo || '',
+              });
+              localStorage.setItem('test-crm-accepted', JSON.stringify(acc));
+            }
+          }
+        } catch {}
+      } else {
+        // 内定承諾以外に戻した場合は crm-accepted から削除（誤登録の取り消し）
+        try {
+          const acc = JSON.parse(localStorage.getItem('test-crm-accepted') || '[]');
+          const prevStatus = (plans[cid]?.[idx]?.selectionStatus) || '';
+          if (prevStatus === '内定承諾') {
+            const cleaned = acc.filter(a => !(a.id === cid && a.companyName === companyName));
+            localStorage.setItem('test-crm-accepted', JSON.stringify(cleaned));
+          }
+        } catch {}
+      }
+    }
+  };
+  const removeCompany = (cid, idx) => {
+    const arr = [...(plans[cid] || [])];
+    arr.splice(idx, 1);
+    savePlans({ ...plans, [cid]: arr });
+  };
+  const updateMeta = (cid, field, value) => {
+    saveMeta({ ...meta, [cid]: { ...(meta[cid] || {}), [field]: value } });
+  };
+
+  const getRowStyle = (status) => {
+    const grayed = ['選考辞退','書類お見送り','面接お見送り'].includes(status);
+    if (grayed) return { bg: '#9ca3af', color: '#ffffff', opacity: 1 };
+    if (status === 'オファー面談' || status === '内定') return { bg: '#fff3e0', color: '#d97706', opacity: 1 };
+    if (status === '内定承諾' || status === '入社確定') return { bg: '#f97316', color: '#ffffff', opacity: 1 };
+    return { bg: 'var(--bg-card)', color: 'var(--text-primary)', opacity: 1 };
+  };
+
+  return (
+    <div style={{display:'flex', flexDirection:'column', gap:'14px'}}>
+      <div className="card">
+        <div className="card-header">
+          <div className="card-title">📋 推薦済み・選考ステータス</div>
+          <span className="badge-count">{pipelineCandidates.length}</span>
+        </div>
+        <div className="card-body" style={{display:'flex',flexDirection:'column',gap:'16px',padding:'12px'}}>
+          {pipelineCandidates.length === 0 && (
+            <div style={{color:'var(--text-muted)',fontSize:'15px',padding:'24px 0',textAlign:'center'}}>
+              推薦済みの求職者がいません
+            </div>
+          )}
+          {pipelineCandidates.map(c => {
+            const m = meta[c.id] || {};
+            const companyList = plans[c.id] || [];
+            return (
+              <div key={c.id} style={{border:'1px solid var(--border)',borderRadius:'var(--radius)',overflow:'hidden',boxShadow:'var(--shadow)'}}>
+                {/* 候補者ヘッダー */}
+                <div style={{background:'var(--accent-subtle)',borderBottom:'1px solid var(--border)',padding:'10px 14px',display:'flex',flexWrap:'wrap',gap:'10px',alignItems:'center'}}>
+                  <span style={{fontWeight:'700',fontSize:'14px',color:'var(--text-primary)',minWidth:'90px'}}>{c.name}</span>
+                  <StatusBadge status={c.status} />
+                  <label style={{display:'flex',alignItems:'center',gap:'4px',fontSize:'14px',color:'var(--text-secondary)'}}>
+                    見込み:
+                    <select value={m.rank || ''} onChange={e=>updateMeta(c.id,'rank',e.target.value)}
+                      style={{border:'1px solid var(--border)',borderRadius:'4px',padding:'2px 6px',fontSize:'14px',background:'var(--bg-card)',color: m.rank==='100%'?'var(--success)':m.rank==='70%'?'var(--accent)':'var(--text-primary)',fontWeight:'600'}}>
+                      <option value="">-</option>
+                      {PROSPECT_RANK_OPTIONS.map(r=><option key={r} value={r}>{r}</option>)}
+                    </select>
+                  </label>
+                  <label style={{display:'flex',alignItems:'center',gap:'4px',fontSize:'14px',color:'var(--text-secondary)'}}>
+                    他社選考:
+                    <select value={m.hasOtherSelection || ''} onChange={e=>updateMeta(c.id,'hasOtherSelection',e.target.value)}
+                      style={{border:'1px solid var(--border)',borderRadius:'4px',padding:'2px 6px',fontSize:'14px',background:'var(--bg-card)'}}>
+                      <option value="">-</option>
+                      <option value="あり">あり</option>
+                      <option value="なし">なし</option>
+                    </select>
+                  </label>
+                  <label style={{display:'flex',alignItems:'center',gap:'4px',fontSize:'14px',color:'var(--text-secondary)'}}>
+                    他エージェント:
+                    <select value={m.hasAgent || ''} onChange={e=>updateMeta(c.id,'hasAgent',e.target.value)}
+                      style={{border:'1px solid var(--border)',borderRadius:'4px',padding:'2px 6px',fontSize:'14px',background:'var(--bg-card)'}}>
+                      <option value="">-</option>
+                      <option value="あり">あり</option>
+                      <option value="なし">なし</option>
+                    </select>
+                  </label>
+                  <label style={{display:'flex',alignItems:'center',gap:'4px',fontSize:'14px',color:'var(--text-secondary)'}}>
+                    希望入社月:
+                    <input type="month" value={m.desiredJoinMonth || ''} onChange={e=>updateMeta(c.id,'desiredJoinMonth',e.target.value)}
+                      style={{border:'1px solid var(--border)',borderRadius:'4px',padding:'2px 6px',fontSize:'14px',background:'var(--bg-card)',color:'var(--text-primary)'}} />
+                  </label>
+                  <button onClick={()=>addCompany(c.id)}
+                    style={{marginLeft:'auto',background:'var(--accent)',color:'#fff',border:'none',borderRadius:'4px',padding:'5px 14px',fontSize:'14px',cursor:'pointer',fontWeight:'600',whiteSpace:'nowrap'}}>
+                    ＋ 企業追加
+                  </button>
+                </div>
+                {/* 企業リスト */}
+                {companyList.length === 0 ? (
+                  <div style={{padding:'10px 14px',fontSize:'14px',color:'var(--text-muted)'}}>「＋ 企業追加」で企業を登録してください</div>
+                ) : (
+                  <table style={{width:'100%',borderCollapse:'collapse',fontSize:'14px'}}>
+                    <thead>
+                      <tr style={{background:'var(--bg-base)',borderBottom:'1px solid var(--border)'}}>
+                        <th style={{padding:'6px 10px',textAlign:'center',fontWeight:'600',color:'var(--text-secondary)',width:'36px'}}>#</th>
+                        <th style={{padding:'6px 10px',textAlign:'left',fontWeight:'600',color:'var(--text-secondary)'}}>企業名</th>
+                        <th style={{padding:'6px 10px',textAlign:'left',fontWeight:'600',color:'var(--text-secondary)',width:'110px',whiteSpace:'nowrap'}}>職種</th>
+                        <th style={{padding:'6px 10px',textAlign:'left',fontWeight:'600',color:'var(--text-secondary)',width:'170px',whiteSpace:'nowrap'}}>面接日程</th>
+                        <th style={{padding:'6px 10px',textAlign:'center',fontWeight:'600',color:'var(--text-secondary)',width:'70px',whiteSpace:'nowrap'}}>確定返信</th>
+                        <th style={{padding:'6px 10px',textAlign:'left',fontWeight:'600',color:'var(--text-secondary)',width:'160px',whiteSpace:'nowrap'}}>選考ステータス</th>
+                        <th style={{padding:'6px 10px',textAlign:'left',fontWeight:'600',color:'var(--text-secondary)',width:'120px',whiteSpace:'nowrap'}}>承諾期限</th>
+                        <th style={{padding:'6px 10px',width:'48px'}}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {companyList.map((cp, idx) => {
+                        const rs = getRowStyle(cp.selectionStatus);
+                        const isCustomCompany = cp.company && !COMPANY_PRESETS.includes(cp.company);
+                        const isCustomJobType = cp.jobType && !JOB_TYPE_PRESETS.includes(cp.jobType);
+                        return (
+                          <tr key={idx} style={{background:rs.bg,borderBottom:'1px solid var(--border-light)',opacity:rs.opacity}}>
+                            <td style={{padding:'6px 10px',color:'var(--text-muted)',textAlign:'center',fontWeight:'600'}}>{idx+1}</td>
+                            <td style={{padding:'6px 10px'}}>
+                              <select value={isCustomCompany ? '自己記入' : (cp.company || '')}
+                                onChange={e => {
+                                  if (e.target.value === '自己記入') {
+                                    updateCompany(c.id, idx, 'company', '');
+                                  } else {
+                                    updateCompany(c.id, idx, 'company', e.target.value);
+                                  }
+                                }}
+                                style={{border:'1px solid var(--border)',borderRadius:'4px',padding:'3px 6px',fontSize:'14px',background:rs.bg,color:rs.color,width:'100%',marginBottom: isCustomCompany ? '4px' : '0'}}>
+                                <option value="">-- 選択 --</option>
+                                {COMPANY_PRESETS.map(co=><option key={co} value={co}>{co}</option>)}
+                                <option value="自己記入">自己記入</option>
+                              </select>
+                              {isCustomCompany && (
+                                <input type="text" value={cp.company || ''} placeholder="企業名を入力..."
+                                  onChange={e=>updateCompany(c.id,idx,'company',e.target.value)}
+                                  style={{border:'1px solid var(--border)',borderRadius:'4px',padding:'3px 8px',fontSize:'14px',background:'transparent',color:rs.color,width:'100%'}} />
+                              )}
+                            </td>
+                            <td style={{padding:'6px 10px'}}>
+                              <select value={isCustomJobType ? '自己記入' : (cp.jobType || '')}
+                                onChange={e => {
+                                  if (e.target.value === '自己記入') {
+                                    updateCompany(c.id, idx, 'jobType', '');
+                                  } else {
+                                    updateCompany(c.id, idx, 'jobType', e.target.value);
+                                  }
+                                }}
+                                style={{border:'1px solid var(--border)',borderRadius:'4px',padding:'3px 6px',fontSize:'14px',background:rs.bg,color:rs.color,width:'100%',marginBottom: isCustomJobType ? '4px' : '0'}}>
+                                <option value="">-- 選択 --</option>
+                                {JOB_TYPE_PRESETS.map(jt=><option key={jt} value={jt}>{jt}</option>)}
+                                <option value="自己記入">自己記入</option>
+                              </select>
+                              {isCustomJobType && (
+                                <input type="text" value={cp.jobType || ''} placeholder="職種を入力..."
+                                  onChange={e=>updateCompany(c.id,idx,'jobType',e.target.value)}
+                                  style={{border:'1px solid var(--border)',borderRadius:'4px',padding:'3px 8px',fontSize:'14px',background:'transparent',color:rs.color,width:'100%'}} />
+                              )}
+                            </td>
+                            <td style={{padding:'6px 10px'}}>
+                              <div style={{display:'flex',gap:'3px',alignItems:'center'}}>
+                                <input type="date" value={(cp.date||'').slice(0,10)}
+                                  onChange={e=>updateCompany(c.id,idx,'date',e.target.value+'T'+((cp.date||'').slice(11,16)||'00:00'))}
+                                  style={{border:'1px solid var(--border)',borderRadius:'4px',padding:'2px 4px',fontSize:'14px',background:'transparent',color:rs.color,width:'108px'}}/>
+                                <select value={(cp.date||'').slice(11,16)||''}
+                                  onChange={e=>updateCompany(c.id,idx,'date',((cp.date||'').slice(0,10)||new Date().toISOString().slice(0,10))+'T'+e.target.value)}
+                                  style={{border:'1px solid var(--border)',borderRadius:'4px',padding:'2px 4px',fontSize:'14px',background:'transparent',color:rs.color,width:'62px'}}>
+                                  <option value="">--:--</option>
+                                  {Array.from({length:28},(_,i)=>{const h=String(Math.floor(i/2)+8).padStart(2,'0');const mn=i%2===0?'00':'30';return <option key={i} value={`${h}:${mn}`}>{`${h}:${mn}`}</option>;})}
+                                </select>
+                              </div>
+                            </td>
+                            <td style={{padding:'6px 10px',textAlign:'center'}}>
+                              <label style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'2px',cursor:'pointer'}}>
+                                <input type="checkbox" checked={!!cp.pendingConfirm}
+                                  onChange={e=>updateCompany(c.id,idx,'pendingConfirm',e.target.checked)}
+                                  style={{width:'16px',height:'16px',cursor:'pointer',accentColor:'var(--success)'}} />
+                                {cp.pendingConfirm && <span style={{fontSize:'10px',color:'var(--success)',fontWeight:'700',whiteSpace:'nowrap'}}>確定済み</span>}
+                              </label>
+                            </td>
+                            <td style={{padding:'6px 10px'}}>
+                              <select value={cp.selectionStatus || '書類選考中'}
+                                onChange={e=>updateCompany(c.id,idx,'selectionStatus',e.target.value)}
+                                style={{border:'1px solid var(--border)',borderRadius:'4px',padding:'3px 6px',fontSize:'14px',
+                                  background:rs.bg,color:rs.color,fontWeight:['選考辞退','書類お見送り','面接お見送り'].includes(cp.selectionStatus)?'400':'600',width:'100%'}}>
+                                {SELECTION_STATUS_OPTIONS.map(s=><option key={s} value={s}>{s}</option>)}
+                              </select>
+                            </td>
+                            <td style={{padding:'6px 10px'}}>
+                              {cp.selectionStatus === '内定' ? (() => {
+                                const _now2 = new Date();
+                                const _todayStr2 = _now2.toISOString().slice(0,10);
+                                const _alertDays = cp.alertDays !== undefined ? Number(cp.alertDays) : 3;
+                                const _alertDate = new Date(_now2); _alertDate.setDate(_alertDate.getDate() + _alertDays);
+                                const _alertDateStr = _alertDate.toISOString().slice(0,10);
+                                const _isPast = cp.offerDeadline && cp.offerDeadline < _todayStr2;
+                                const _isAlert = cp.offerDeadline && !_isPast && cp.offerDeadline <= _alertDateStr;
+                                const _daysLeft = cp.offerDeadline ? Math.ceil((new Date(cp.offerDeadline) - new Date(_todayStr2)) / 86400000) : null;
+                                return (
+                                  <div>
+                                    <input type="date" value={cp.offerDeadline || ''}
+                                      onChange={e=>updateCompany(c.id,idx,'offerDeadline',e.target.value)}
+                                      style={{border:`2px solid ${_isAlert?'#d97706':_isPast?'#ef4444':'var(--border)'}`,borderRadius:'6px',
+                                        padding:'4px 8px',fontSize:'14px',fontWeight:'600',
+                                        background:_isAlert?'#fff3e0':_isPast?'#fee2e2':'transparent',
+                                        color:_isAlert?'#d97706':_isPast?'#ef4444':rs.color,width:'120px'}} />
+                                    {_isAlert && _daysLeft !== null && (
+                                      <div style={{marginTop:'4px',padding:'3px 8px',borderRadius:'6px',background:'#fff3e0',border:'1px solid #d97706',display:'inline-block'}}>
+                                        <span style={{fontSize:'13px',color:'#d97706',fontWeight:'700'}}>
+                                          ⚠ {_daysLeft === 0 ? '本日期限' : _daysLeft === 1 ? '明日まで' : `あと${_daysLeft}日`}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {_isPast && (
+                                      <div style={{marginTop:'4px',padding:'3px 8px',borderRadius:'6px',background:'#fee2e2',border:'1px solid #ef4444',display:'inline-block'}}>
+                                        <span style={{fontSize:'13px',color:'#ef4444',fontWeight:'700'}}>⚠ 期限切れ</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })() : <span style={{color:'var(--text-muted)',fontSize:'13px'}}>—</span>}
+                            </td>
+                            <td style={{padding:'6px 10px',textAlign:'center'}}>
+                              <button onClick={()=>removeCompany(c.id,idx)}
+                                style={{background:'none',border:'1px solid var(--border)',borderRadius:'4px',padding:'2px 6px',fontSize:'14px',color:'var(--danger)',cursor:'pointer'}}>
+                                削除
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const ACCEPT_MILESTONES = [
+  { id: 'accepted',   label: '承諾',           icon: '✓' },
+  { id: 'procedures', label: '書類手続き完了',   icon: '📋' },
+  { id: 'joinDate',   label: '入社確定',       icon: '📅' },
+  { id: 'oneMonth',   label: '1ヶ月フォロー済',  icon: '🎯' },
+];
+
+function PostAcceptPage({ period }) {
+  const [activeTab, setActiveTab] = useState('monthly'); // 'management' | 'monthly'
+
+  // 選択月（period="2026/04"）を基準に直近6ヶ月を生成
+  const getThreeMonths = () => {
+    const result = [];
+    let baseY, baseM;
+    if (period) {
+      [baseY, baseM] = period.split('/').map(Number);
+    } else {
+      const now = new Date();
+      baseY = now.getFullYear(); baseM = now.getMonth() + 1;
+    }
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(baseY, baseM - 1 - i, 1);
+      result.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+    }
+    return result;
+  };
+  const threeMonths = getThreeMonths();
+
+  const loadAccepted = () => {
+    try {
+      const acc = JSON.parse(localStorage.getItem('test-crm-accepted') || '[]');
+      return acc
+        .filter(a => a.assignedCA === CA_MY_NAME)
+        .filter(a => {
+          // acceptedAt または acceptanceDate で判定（どちらもなければ表示する）
+          const dateStr = a.acceptedAt || a.acceptanceDate || '';
+          if (!dateStr) return true;
+          const ym = dateStr.slice(0, 7); // "YYYY-MM"
+          return threeMonths.includes(ym);
+        });
+    } catch { return []; }
+  };
+  const loadMilestones = () => {
+    try { return JSON.parse(localStorage.getItem('test-crm-post-accept-milestones') || '{}'); } catch { return {}; }
+  };
+
+  const [accepted, setAccepted] = useState(loadAccepted);
+  const [milestoneState, setMilestoneState] = useState(loadMilestones);
+
+  React.useEffect(() => {
+    setAccepted(loadAccepted()); // 月変更時に即時更新
+    const reload = () => { setAccepted(loadAccepted()); setMilestoneState(loadMilestones()); };
+    window.addEventListener('focus', reload);
+    return () => window.removeEventListener('focus', reload);
+  }, [period]);
+
+  const getMilestones = (id) => ({
+    accepted: true, procedures: false, joinDate: false, oneMonth: false,
+    ...(milestoneState[id] || {}),
+  });
+
+  // period変更時のみ並び順を確定（ボタン操作で順番が変わらないようにする）
+  const [sortedIds, setSortedIds] = React.useState([]);
+  React.useEffect(() => {
+    const ms = (() => { try { return JSON.parse(localStorage.getItem('test-crm-post-accept-milestones') || '{}'); } catch { return {}; } })();
+    const getScore = id => {
+      const m = { accepted: true, procedures: false, joinDate: false, oneMonth: false, ...(ms[id] || {}) };
+      if (!m.procedures) return 0;
+      if (!m.joinDate)   return 1;
+      if (!m.oneMonth)   return 2;
+      return 3;
+    };
+    const sorted = [...accepted].sort((a, b) => getScore(a.id) - getScore(b.id));
+    setSortedIds(sorted.map(a => a.id));
+  }, [accepted]);
+
+  const recordsMap = Object.fromEntries(accepted.map(a => [a.id, {
+    id: a.id, name: a.name,
+    company: a.companyName || a.company || '—',
+    acceptDate: (a.acceptedAt || a.acceptanceDate || '').slice(0,10) || '',
+    joinDate: a.joiningDate || '未定',
+    revenue: Number(a.contractAmount) || 0,
+    milestones: getMilestones(a.id),
+  }]));
+  // 確定済み並び順で表示（ボタン操作では順番変わらず）
+  const records = sortedIds.length > 0
+    ? sortedIds.map(id => recordsMap[id]).filter(Boolean)
+    : accepted.map(a => recordsMap[a.id]);
+
+  const toggleMilestone = (personId, milestoneId) => {
+    if (milestoneId === 'accepted') return;
+    setMilestoneState(prev => {
+      const cur = { accepted: true, procedures: false, joinDate: false, oneMonth: false, ...(prev[personId] || {}) };
+      const next = { ...prev, [personId]: { ...cur, [milestoneId]: !cur[milestoneId] } };
+      try { localStorage.setItem('test-crm-post-accept-milestones', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+
+  const updateRevenue = (id, value) => {
+    try {
+      const all = JSON.parse(localStorage.getItem('test-crm-accepted') || '[]');
+      const updated = all.map(a => a.id === id ? { ...a, contractAmount: Number(value) || 0 } : a);
+      localStorage.setItem('test-crm-accepted', JSON.stringify(updated));
+      setAccepted(updated.filter(a => a.assignedCA === CA_MY_NAME));
+    } catch {}
+  };
+
+  const updateJoinDate = (id, value) => {
+    try {
+      const all = JSON.parse(localStorage.getItem('test-crm-accepted') || '[]');
+      const updated = all.map(a => a.id === id ? { ...a, joiningDate: value } : a);
+      localStorage.setItem('test-crm-accepted', JSON.stringify(updated));
+      setAccepted(updated.filter(a => a.assignedCA === CA_MY_NAME));
+    } catch {}
+  };
+
+  // 承諾日を編集 → acceptedAt と acceptanceDate 両方を更新（月次カウントに反映）
+  const updateAcceptDate = (id, value) => {
+    try {
+      const all = JSON.parse(localStorage.getItem('test-crm-accepted') || '[]');
+      const updated = all.map(a => a.id === id ? { ...a, acceptedAt: value, acceptanceDate: value } : a);
+      localStorage.setItem('test-crm-accepted', JSON.stringify(updated));
+      setAccepted(updated.filter(a => a.assignedCA === CA_MY_NAME).filter(a => {
+        const dateStr = a.acceptedAt || a.acceptanceDate || '';
+        if (!dateStr) return true;
+        return threeMonths.includes(dateStr.slice(0,7));
+      }));
+    } catch {}
+  };
+
+  const deleteAccepted = (id, name) => {
+    if (!window.confirm(`「${name}」を承諾後管理から削除しますか？\nこの操作は取り消せません。`)) return;
+    try {
+      const all = JSON.parse(localStorage.getItem('test-crm-accepted') || '[]');
+      const updated = all.filter(a => a.id !== id);
+      localStorage.setItem('test-crm-accepted', JSON.stringify(updated));
+      setAccepted(updated.filter(a => a.assignedCA === CA_MY_NAME));
+    } catch {}
+  };
+
+  const getProgress = (id) => {
+    const m = getMilestones(id);
+    const done = Object.values(m).filter(Boolean).length;
+    return Math.round((done / ACCEPT_MILESTONES.length) * 100);
+  };
+
+  // 表示期間ラベル（例: "2025年12月〜2026年5月"）
+  const periodLabel = (() => {
+    const first = threeMonths[0];
+    const last = threeMonths[threeMonths.length - 1];
+    const [fy, fm] = first.split('-').map(Number);
+    const [ly, lm] = last.split('-').map(Number);
+    return fy === ly ? `${fy}年${fm}月〜${lm}月` : `${fy}年${fm}月〜${ly}年${lm}月`;
+  })();
+
+  // 今月承諾者タブ用データ
+  const periodKey = period ? period.replace('/', '-') : (() => {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;
+  })();
+  const periodLabel2 = (() => {
+    const [y, m] = periodKey.split('-').map(Number);
+    return `${y}年${m}月`;
+  })();
+
+  const loadMonthlyAccepted = () => {
+    try {
+      const acc = JSON.parse(localStorage.getItem('test-crm-accepted') || '[]');
+      const cands = JSON.parse(localStorage.getItem('test-crm-candidates') || '[]');
+      const plans = JSON.parse(localStorage.getItem('test-crm-interview-plans') || '{}');
+      return acc
+        .filter(a => a.assignedCA === CA_MY_NAME)
+        .filter(a => {
+          const dateStr = a.acceptedAt || a.acceptanceDate || '';
+          return dateStr.startsWith(periodKey);
+        })
+        .map(a => {
+          const cand = cands.find(c => c.id === a.id) || {};
+          const cpList = plans[a.id] || [];
+          const activePlan = cpList.find(cp => !['選考辞退','書類お見送り','面接お見送り'].includes(cp.selectionStatus||'')) || cpList[0] || {};
+          const firstInterviewDate = cand.firstInterviewDate || '';
+          const acceptedAt = (a.acceptedAt || a.acceptanceDate || '').slice(0,10);
+          // リードタイム: 初回面接日 → 承諾日の日数
+          let leadTime = null;
+          if (firstInterviewDate && acceptedAt) {
+            const diff = Math.ceil((new Date(acceptedAt) - new Date(firstInterviewDate.slice(0,10))) / 86400000);
+            if (!isNaN(diff) && diff >= 0) leadTime = diff;
+          }
+          return {
+            id: a.id,
+            name: a.name || cand.name || '—',
+            company: a.companyName || a.company || '—',
+            firstInterviewDate: firstInterviewDate.slice(0,10),
+            proposalDate: cand.proposalDate || '',
+            acceptedAt,
+            leadTime,
+            joiningDate: a.joiningDate || '',
+            jobType: activePlan.jobType || activePlan.position || '',
+            revenue: Number(a.contractAmount) || 0,
+          };
+        });
+    } catch { return []; }
+  };
+
+  const [monthlyRows, setMonthlyRows] = React.useState(loadMonthlyAccepted);
+
+  React.useEffect(() => {
+    setMonthlyRows(loadMonthlyAccepted());
+  }, [period]);
+
+  const updateMonthlyRevenue = (id, value) => {
+    try {
+      const all = JSON.parse(localStorage.getItem('test-crm-accepted') || '[]');
+      const updated = all.map(a => a.id === id ? { ...a, contractAmount: Number(value) || 0 } : a);
+      localStorage.setItem('test-crm-accepted', JSON.stringify(updated));
+      setMonthlyRows(loadMonthlyAccepted());
+      setAccepted(updated.filter(a => a.assignedCA === CA_MY_NAME).filter(a => {
+        const ds = a.acceptedAt || a.acceptanceDate || '';
+        return !ds || threeMonths.includes(ds.slice(0,7));
+      }));
+    } catch {}
+  };
+
+  const updateMonthlyJoinDate = (id, value) => {
+    try {
+      const all = JSON.parse(localStorage.getItem('test-crm-accepted') || '[]');
+      const updated = all.map(a => a.id === id ? { ...a, joiningDate: value } : a);
+      localStorage.setItem('test-crm-accepted', JSON.stringify(updated));
+      setMonthlyRows(loadMonthlyAccepted());
+      setAccepted(updated.filter(a => a.assignedCA === CA_MY_NAME).filter(a => {
+        const ds = a.acceptedAt || a.acceptanceDate || '';
+        return !ds || threeMonths.includes(ds.slice(0,7));
+      }));
+    } catch {}
+  };
+
+  const tabStyle = (tab) => ({
+    padding:'8px 24px', borderRadius:'8px 8px 0 0', fontWeight:'700', fontSize:'14px',
+    cursor:'pointer', border:'1px solid var(--border)', borderBottom:'none',
+    background: activeTab === tab ? 'var(--bg-base)' : 'var(--bg-hover)',
+    color: activeTab === tab ? 'var(--accent)' : 'var(--text-muted)',
+    transition:'all 0.15s',
+  });
+
+  return (
+    <div style={{display:'flex', flexDirection:'column', gap:'14px'}}>
+      {/* タブ切り替え */}
+      <div style={{display:'flex', gap:'4px', borderBottom:'1px solid var(--border)', marginBottom:'-14px'}}>
+        <button style={tabStyle('monthly')} onClick={() => setActiveTab('monthly')}>今月承諾者</button>
+        <button style={tabStyle('management')} onClick={() => setActiveTab('management')}>承諾管理</button>
+      </div>
+
+      {/* ===== 承諾管理タブ ===== */}
+      {activeTab === 'management' && (
+        <div style={{display:'flex', flexDirection:'column', gap:'14px', paddingTop:'14px'}}>
+          {/* 表示期間バナー */}
+          <div style={{background:'var(--accent-subtle)',border:'1px solid var(--accent-light)',borderRadius:'var(--radius)',padding:'8px 16px',fontSize:'14px',color:'var(--accent)',display:'flex',alignItems:'center',gap:'8px'}}>
+            <span>📅</span>
+            <strong>表示期間: {periodLabel}</strong>
+            <span style={{color:'var(--text-muted)'}}>— 直近6ヶ月分を表示しています</span>
+          </div>
+          {/* サマリーKPI */}
+          <div className="kpi-grid" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
+            <div className="kpi-card" style={{'--kpi-color':'var(--success)'}}>
+              <div className="kpi-label">承諾者数</div>
+              <div className="kpi-value">{records.length}</div>
+              <div className="kpi-target">{periodLabel}</div>
+            </div>
+            <div className="kpi-card" style={{'--kpi-color':'var(--chart-3)'}}>
+              <div className="kpi-label">手続き完了待ち</div>
+              <div className="kpi-value">{records.filter(r=>!r.milestones.procedures).length}</div>
+              <div className="kpi-target">{records.length}名中</div>
+            </div>
+            <div className="kpi-card" style={{'--kpi-color':'var(--accent)'}}>
+              <div className="kpi-label">入社予定</div>
+              <div className="kpi-value">{records.filter(r=>!r.milestones.joinDate).length}</div>
+              <div className="kpi-target">{records.length}名中</div>
+            </div>
+          </div>
+
+          {/* マイルストーン凡例 */}
+          <div className="card">
+            <div className="card-header">
+              <div className="card-title">承諾後フォロー管理</div>
+              <div style={{display:'flex', gap:'16px', marginLeft:'auto'}}>
+                {ACCEPT_MILESTONES.map(m => (
+                  <span key={m.id} style={{fontSize:'15px', color:'var(--text-muted)', display:'flex', alignItems:'center', gap:'4px'}}>
+                    <span>{m.icon}</span>{m.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="card-body" style={{padding:'0'}}>
+              {records.map((r) => {
+                const progress = getProgress(r.id);
+                return (
+                  <div key={r.id} style={{padding:'16px 20px', borderBottom:'1px solid var(--border)'}}>
+                    {/* 上段：名前・情報・進捗円 */}
+                    <div style={{display:'grid', gridTemplateColumns:'1fr auto', gap:'12px', alignItems:'start', marginBottom:'12px'}}>
+                      <div>
+                        <div style={{fontWeight:'700', fontSize:'14px', color:'var(--text-primary)', marginBottom:'4px'}}>{r.name}</div>
+                        <div style={{fontSize:'14px', color:'var(--text-muted)', marginBottom:'8px'}}>{r.company}</div>
+                        <div style={{display:'grid', gridTemplateColumns:'auto auto 1fr', gap:'12px', alignItems:'center', flexWrap:'wrap'}}>
+                          <div>
+                            <div style={{fontSize:'12px', color:'var(--text-muted)', marginBottom:'2px'}}>承諾日 <span style={{color:'var(--accent)',fontSize:'11px'}}>（月次集計に反映）</span></div>
+                            <input
+                              type="date"
+                              value={r.acceptDate || ''}
+                              onChange={e => updateAcceptDate(r.id, e.target.value)}
+                              style={{padding:'3px 8px', border:'1px solid var(--accent-light)', borderRadius:'6px', fontSize:'14px', fontWeight:'600', color:'var(--text-primary)', background:'var(--bg-base)', outline:'none'}}
+                            />
+                          </div>
+                          <div>
+                            <div style={{fontSize:'12px', color:'var(--text-muted)', marginBottom:'2px'}}>入社予定日</div>
+                            <input
+                              type="date"
+                              value={r.joinDate && r.joinDate !== '未定' ? r.joinDate : ''}
+                              onChange={e => updateJoinDate(r.id, e.target.value)}
+                              style={{padding:'3px 8px', border:'1px solid var(--border)', borderRadius:'6px', fontSize:'14px', fontWeight:'600', color:'var(--text-primary)', background:'var(--bg-base)', outline:'none'}}
+                            />
+                          </div>
+                          <div>
+                            <div style={{fontSize:'12px', color:'var(--text-muted)', marginBottom:'2px'}}>受注金額</div>
+                            <div style={{display:'flex', alignItems:'center', gap:'3px'}}>
+                              <span style={{fontSize:'15px', fontWeight:'600', color:'var(--success)'}}>¥</span>
+                              <input
+                                type="text" inputMode="numeric"
+                                value={r.revenue ? r.revenue.toLocaleString() : ''} placeholder="0"
+                                onChange={e => updateRevenue(r.id, e.target.value.replace(/[^0-9]/g, ''))}
+                                style={{width:'130px', textAlign:'right', padding:'4px 8px', border:'1px solid var(--border)', borderRadius:'6px', fontSize:'15px', fontWeight:'700', color:'var(--success)', background:'var(--bg-base)', outline:'none'}}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      {/* 進捗円グラフ + 削除ボタン */}
+                      <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'6px'}}>
+                        <div style={{
+                          width:'52px', height:'52px', borderRadius:'50%',
+                          background:`conic-gradient(var(--accent) ${progress}%, var(--bg-hover) 0)`,
+                          display:'flex', alignItems:'center', justifyContent:'center',
+                          fontSize:'14px', fontWeight:'700', color:'var(--text-primary)',
+                        }}>{progress}%</div>
+                        <div style={{fontSize:'12px', color:'var(--text-muted)'}}>進捗</div>
+                        <button onClick={() => deleteAccepted(r.id, r.name)}
+                          style={{fontSize:'12px', padding:'3px 10px', border:'1px solid var(--danger)', borderRadius:'4px',
+                            background:'var(--danger-bg)', color:'var(--danger)', cursor:'pointer', fontWeight:'600', marginTop:'2px'}}>
+                          削除
+                        </button>
+                      </div>
+                    </div>
+                    {/* 下段：マイルストーンボタン（5列グリッド） */}
+                    <div style={{display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:'8px'}}>
+                      {ACCEPT_MILESTONES.map((m) => {
+                        const done = r.milestones[m.id];
+                        const isFirst = m.id === 'accepted';
+                        return (
+                          <button key={m.id} onClick={() => toggleMilestone(r.id, m.id)} disabled={isFirst}
+                            style={{
+                              display:'flex', flexDirection:'column', alignItems:'center', gap:'4px',
+                              padding:'10px 6px', borderRadius:'10px',
+                              border: done ? '1.5px solid var(--success)' : '1.5px solid var(--border)',
+                              cursor: isFirst ? 'default' : 'pointer',
+                              background: done ? 'rgba(16,185,129,0.08)' : 'var(--bg-base)',
+                              color: done ? 'var(--success)' : 'var(--text-muted)',
+                              fontWeight: done ? '700' : '400',
+                              fontSize:'13px', transition:'all 0.15s',
+                              opacity: isFirst ? 1 : 1,
+                            }}
+                          >
+                            <span style={{fontSize:'16px'}}>{done ? '✅' : m.icon}</span>
+                            <span style={{textAlign:'center', lineHeight:'1.3'}}>{m.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== 今月承諾者タブ ===== */}
+      {activeTab === 'monthly' && (
+        <div style={{display:'flex', flexDirection:'column', gap:'14px', paddingTop:'14px'}}>
+          {/* バナー */}
+          <div style={{background:'var(--accent-subtle)',border:'1px solid var(--accent-light)',borderRadius:'var(--radius)',padding:'8px 16px',fontSize:'14px',color:'var(--accent)',display:'flex',alignItems:'center',gap:'8px'}}>
+            <span>🎉</span>
+            <strong>{periodLabel2}の承諾者一覧</strong>
+            <span style={{color:'var(--text-muted)'}}>— {monthlyRows.length}名</span>
+          </div>
+
+          {/* テーブル */}
+          <div className="card">
+            <div className="card-body" style={{padding:'0', overflowX:'auto'}}>
+              {monthlyRows.length === 0 ? (
+                <div style={{padding:'32px', textAlign:'center', color:'var(--text-muted)', fontSize:'14px'}}>
+                  {periodLabel2}の承諾者はまだいません
+                </div>
+              ) : (
+                <table style={{width:'100%', borderCollapse:'collapse', fontSize:'14px'}}>
+                  <thead>
+                    <tr style={{background:'var(--bg-hover)', borderBottom:'2px solid var(--border)'}}>
+                      <th style={{padding:'10px 14px', textAlign:'left', fontWeight:'700', color:'var(--text-muted)', whiteSpace:'nowrap'}}>求職者氏名</th>
+                      <th style={{padding:'10px 14px', textAlign:'left', fontWeight:'700', color:'var(--text-muted)', whiteSpace:'nowrap'}}>承諾先企業</th>
+                      <th style={{padding:'10px 14px', textAlign:'left', fontWeight:'700', color:'var(--text-muted)', whiteSpace:'nowrap'}}>初回面接日</th>
+                      <th style={{padding:'10px 14px', textAlign:'left', fontWeight:'700', color:'var(--text-muted)', whiteSpace:'nowrap'}}>提案日</th>
+                      <th style={{padding:'10px 14px', textAlign:'left', fontWeight:'700', color:'var(--text-muted)', whiteSpace:'nowrap'}}>承諾日</th>
+                      <th style={{padding:'10px 14px', textAlign:'center', fontWeight:'700', color:'var(--text-muted)', whiteSpace:'nowrap'}}>リードタイム</th>
+                      <th style={{padding:'10px 14px', textAlign:'left', fontWeight:'700', color:'var(--text-muted)', whiteSpace:'nowrap'}}>入社日</th>
+                      <th style={{padding:'10px 14px', textAlign:'left', fontWeight:'700', color:'var(--text-muted)', whiteSpace:'nowrap'}}>職種</th>
+                      <th style={{padding:'10px 14px', textAlign:'right', fontWeight:'700', color:'var(--text-muted)', whiteSpace:'nowrap'}}>受注額</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {monthlyRows.map((row, idx) => (
+                      <tr key={row.id} style={{borderBottom:'1px solid var(--border)', background: idx % 2 === 0 ? 'var(--bg-base)' : 'var(--bg-hover)'}}>
+                        <td style={{padding:'10px 14px', fontWeight:'700', color:'var(--text-primary)', whiteSpace:'nowrap'}}>{row.name}</td>
+                        <td style={{padding:'10px 14px', color:'var(--text-secondary)', whiteSpace:'nowrap'}}>{row.company}</td>
+                        <td style={{padding:'10px 14px', color:'var(--text-secondary)', whiteSpace:'nowrap'}}>{row.firstInterviewDate || '—'}</td>
+                        <td style={{padding:'10px 14px', color:'var(--text-secondary)', whiteSpace:'nowrap'}}>{row.proposalDate ? row.proposalDate.slice(0,10) : '—'}</td>
+                        <td style={{padding:'10px 14px', color:'var(--accent)', fontWeight:'600', whiteSpace:'nowrap'}}>{row.acceptedAt || '—'}</td>
+                        <td style={{padding:'10px 14px', textAlign:'center', whiteSpace:'nowrap'}}>
+                          {row.leadTime !== null
+                            ? <span style={{background:'var(--accent-subtle)',color:'var(--accent)',fontWeight:'700',padding:'2px 10px',borderRadius:'12px',fontSize:'13px'}}>{row.leadTime}日</span>
+                            : <span style={{color:'var(--text-muted)'}}>—</span>}
+                        </td>
+                        <td style={{padding:'10px 14px'}}>
+                          <input
+                            type="date"
+                            value={row.joiningDate || ''}
+                            onChange={e => updateMonthlyJoinDate(row.id, e.target.value)}
+                            style={{padding:'3px 8px', border:'1px solid var(--border)', borderRadius:'6px', fontSize:'13px', fontWeight:'600', color:'var(--text-primary)', background:'var(--bg-base)', outline:'none'}}
+                          />
+                        </td>
+                        <td style={{padding:'10px 14px', color:'var(--text-secondary)', whiteSpace:'nowrap'}}>{row.jobType || '—'}</td>
+                        <td style={{padding:'10px 14px', textAlign:'right'}}>
+                          <div style={{display:'flex', alignItems:'center', justifyContent:'flex-end', gap:'3px'}}>
+                            <span style={{fontWeight:'600', color:'var(--success)'}}>¥</span>
+                            <input
+                              type="text" inputMode="numeric"
+                              value={row.revenue ? row.revenue.toLocaleString() : ''} placeholder="0"
+                              onChange={e => updateMonthlyRevenue(row.id, e.target.value.replace(/[^0-9]/g, ''))}
+                              style={{width:'120px', textAlign:'right', padding:'4px 8px', border:'1px solid var(--border)', borderRadius:'6px', fontSize:'14px', fontWeight:'700', color:'var(--success)', background:'var(--bg-base)', outline:'none'}}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{borderTop:'2px solid var(--border)', background:'var(--accent-subtle)'}}>
+                      <td colSpan="8" style={{padding:'10px 14px', fontWeight:'700', color:'var(--text-primary)'}}>合計受注額</td>
+                      <td style={{padding:'10px 14px', textAlign:'right', fontWeight:'700', color:'var(--success)', fontSize:'15px'}}>
+                        ¥{monthlyRows.reduce((s,r)=>s+r.revenue,0).toLocaleString()}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TrendPage() {
+  const loadTrend = () => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('test-crm-candidates') || '[]');
+      const mine = Array.isArray(stored) ? stored.filter(c => c.assignedCA === CA_MY_NAME) : [];
+      const now = new Date();
+      const months = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        months.push({
+          key: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`,
+          label: `${d.getMonth()+1}月`,
+        });
+      }
+      return {
+        labels:   months.map(m => m.label),
+        apps:     months.map(m => mine.filter(c => (c.createdAt||'').startsWith(m.key)).length),
+        firstInt: months.map(m => mine.filter(c => (c.firstInterviewDate||'').startsWith(m.key)).length),
+        accepted: months.map(m => mine.filter(c =>
+          ['承諾'].includes(c.caStatus || c.status || '') &&
+          ((c.acceptanceDate || c.createdAt || '').startsWith(m.key))
+        ).length),
+      };
+    } catch { return { labels:[], apps:[], firstInt:[], accepted:[] }; }
+  };
+
+  const [trend, setTrend] = React.useState(loadTrend);
+  React.useEffect(() => {
+    const reload = () => setTrend(loadTrend());
+    window.addEventListener('focus', reload);
+    return () => window.removeEventListener('focus', reload);
+  }, []);
+
+  return (
+    <div style={{display:'flex', flexDirection:'column', gap:'14px'}}>
+      <div className="card">
+        <div className="card-header">
+          <div className="card-title">月別推移分析</div>
+          <div className="card-subtitle" style={{marginLeft:'auto'}}>過去6ヶ月（実データ集計）</div>
+        </div>
+        <div className="card-body">
+          {trend.labels.length === 0
+            ? <div className="empty-state">候補者データがありません</div>
+            : <LineChart
+                datasets={[
+                  { label: '面接設定', data: trend.firstInt },
+                  { label: '承諾',    data: trend.accepted },
+                ]}
+                labels={trend.labels}
+                height={220}
+              />
+          }
+        </div>
+      </div>
+      <div style={{display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:'12px'}}>
+        {[
+          { label: '面接設定（累計）', value: trend.firstInt.reduce((s,v)=>s+v,0), color:'var(--chart-2)' },
+          { label: '承諾（累計）',    value: trend.accepted.reduce((s,v)=>s+v,0), color:'var(--success)'  },
+        ].map((item, i) => (
+          <div key={i} className="kpi-card" style={{'--kpi-color':item.color}}>
+            <div className="kpi-label">{item.label}</div>
+            <div className="kpi-value">{item.value}</div>
+            <div className="kpi-target">過去6ヶ月合計</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ====== MAIN APP ======
+function App() {
+  const [theme, setTheme] = useState(() => localStorage.getItem('crm-theme') || 'minimal-light');
+  const [page, setPage] = useState('summary');
+  // 月選択オプション（過去12ヶ月〜翌月）
+  const periodOptions = useMemo(() => {
+    const opts = [];
+    const now = new Date();
+    for (let i = -12; i <= 1; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const val = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}`;
+      opts.push(val);
+    }
+    return opts.reverse();
+  }, []);
+  const defaultPeriod = `${new Date().getFullYear()}/${String(new Date().getMonth()+1).padStart(2,'0')}`;
+  const [selectedPeriod, setSelectedPeriod] = useState(defaultPeriod);
+  const todayStr = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} (${['日','月','火','水','木','金','土'][d.getDay()]})`;
+  })();
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('crm-theme', theme);
+  }, [theme]);
+
+  const renderPage = () => {
+    switch (page) {
+      case 'summary':    return <SummaryPage period={selectedPeriod} />;
+      case 'progress':   return <ProgressPage period={selectedPeriod} />;
+      case 'revenue':    return <RevenuePage period={selectedPeriod} />;
+      case 'interviews': return <InterviewsPage />;
+      case 'candidates': return <CandidatesPage />;
+      case 'actions':    return <ActionsPage />;
+      case 'postAccept': return <PostAcceptPage period={selectedPeriod} />;
+      case 'trend':      return <TrendPage />;
+      default:           return <SummaryPage period={selectedPeriod} />;
+    }
+  };
+
+  const pageTitle = NAV_ITEMS.find(n => n.id === page)?.label || 'サマリー';
+
+  return (
+    <div className="app-layout">
+      <aside className="sidebar">
+        <div className="sidebar-logo">
+          <h1>CA CRM</h1>
+          <p>人材紹介管理システム</p>
+        </div>
+        <nav className="sidebar-nav">
+          <div className="nav-section-label">メインメニュー</div>
+          {NAV_ITEMS.map(item => (
+            <div key={item.id} className={`nav-item ${page === item.id ? 'active' : ''}`}
+              onClick={() => setPage(item.id)}>
+              <span className="nav-icon">{NAV_ICONS[item.id]}</span>
+              {item.label}
+            </div>
+          ))}
+          <div className="separator" style={{margin:'12px 0'}} />
+          <div className="nav-item" onClick={() => window.location.href='admin.html'} style={{opacity:0.7}}>
+            <span className="nav-icon">{NAV_ICONS.admin}</span>
+            管理者画面へ
+          </div>
+        </nav>
+        <div className="sidebar-footer">v2.0 · {CA_MY_NAME}</div>
+      </aside>
+      <div className="main-content">
+        <div className="topbar">
+          <div className="topbar-left">
+            <div>
+              <div className="page-title">{pageTitle}</div>
+              <div className="page-subtitle">{todayStr} · {CA_MY_NAME}</div>
+            </div>
+            <select
+              value={selectedPeriod}
+              onChange={e=>setSelectedPeriod(e.target.value)}
+              style={{
+                fontSize:'14px',fontWeight:'600',color:'var(--text-secondary)',
+                background:'var(--bg-base)',border:'1px solid var(--border)',
+                borderRadius:'var(--radius-sm)',padding:'3px 8px',cursor:'pointer',
+                outline:'none',
+              }}
+            >
+              {periodOptions.map(p=>(
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          </div>
+          <div className="topbar-right">
+            <ThemeSwitcher theme={theme} setTheme={setTheme} />
+            <div
+              title="ログアウト"
+              onClick={() => { if(window.confirm('ログアウトしますか？')) _auth.signOut(); }}
+              style={{
+                width:'32px', height:'32px', borderRadius:'50%',
+                background:'var(--accent)', color:'#fff',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                fontSize:'15px', fontWeight:'700', cursor:'pointer'
+              }}>{CA_MY_NAME[0] || '?'}</div>
+          </div>
+        </div>
+        <div className="content-area">
+          {renderPage()}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// ====== ROOT (テストモード) ======
+function Root() {
+  const [ready, setReady] = React.useState(false);
+  React.useEffect(() => {
+    async function init() {
+      // ① まずFirestoreから最新データを取得（別デバイスの変更も反映）
+      if (window.__syncFromFirestore) {
+        try { await window.__syncFromFirestore(); }
+        catch(e) { console.warn('[Firestore] 初期同期失敗:', e); }
+      }
+
+      // ② localStorageにデータがなければテストデータを初期化
+      // ========== 月間目標（5月）==========
+    // 面接設定50件 → 初回32(64%) → ブリッジ27(84%) → 企業提案22(82%)
+    // → 推薦17(77%) → 企業面接15(88%) → 内定11(76%) → 承諾7(61%)
+    if (!localStorage.getItem('test-crm-goals')) {
+      localStorage.setItem('test-crm-goals', JSON.stringify({
+        'テストCA_2026-04': {
+          settings: 40,
+          rates: {
+            firstInterview: 65,
+            bridge: 85,
+            proposal: 82,
+            recommendation: 72,
+            companyInterview: 62,
+            offer: 75,
+            acceptance: 50
+          },
+          targets: { acceptance: 3, revenue: 2000000 }
+        },
+        'テストCA_2026-05': {
+          settings: 50,
+          rates: {
+            firstInterview: 64,
+            bridge: 84,
+            proposal: 82,
+            recommendation: 77,
+            companyInterview: 88,
+            offer: 76,
+            acceptance: 61
+          },
+          targets: { acceptance: 7, revenue: 3500000 }
+        }
+      }));
+    }
+
+    // ========== 候補者データ（14日時点の実績）==========
+    // aFI=20 / aINT=14 / aBR=12 / aPR=10 / aREC=8 / aCI=7 / aOF=5 / aAC=4 / 飛び=2
+    // 飛び率=12.5%（目標15%以下）
+    if (!localStorage.getItem('test-crm-candidates')) {
+      const mk = (id, name, status, fid, extra) => Object.assign({
+        id, name, age: 28, gender: '男', phone: '080-0000-0000',
+        email: id + '@example.com', prefecture: '東京都', jobType: '営業',
+        createdAt: fid.slice(0,10), media: 'Indeed',
+        assignedCA: 'テストCA', assignedCS: '山田CS',
+        status, caStatus: status,
+        validStatus: status === '飛び(辞退)' ? '無効' : '有効',
+        companyName: '', firstContactDate: fid.slice(0,10),
+        firstInterviewDate: fid, memo: '', expectedRevenue: 0
+      }, extra || {});
+
+      const sampleCandidates = [
+        // ── 承諾 ×4（aAC=4, aOF=5, aCI=7, aREC=8, aPR=10, aBR=12, aINT=14に貢献）
+        mk('s001','サンプル01','承諾','2026-05-01',{companyName:'企業A',expectedRevenue:380000,bridgeDate:'2026-05-02',bridgeResult:'成功',proposalDate:'2026-05-04',recommendationDate:'2026-05-06',companyInterviewDate:'2026-05-09',offerDate:'2026-05-10',acceptanceDate:'2026-05-11'}),
+        mk('s002','サンプル02','承諾','2026-05-02',{companyName:'企業B',expectedRevenue:420000,bridgeDate:'2026-05-03',bridgeResult:'成功',proposalDate:'2026-05-05',recommendationDate:'2026-05-07',companyInterviewDate:'2026-05-10',offerDate:'2026-05-11',acceptanceDate:'2026-05-12'}),
+        mk('s003','サンプル03','承諾','2026-05-03',{companyName:'企業C',expectedRevenue:350000,bridgeDate:'2026-05-05',bridgeResult:'成功',proposalDate:'2026-05-07',recommendationDate:'2026-05-09',companyInterviewDate:'2026-05-12',offerDate:'2026-05-13',acceptanceDate:'2026-05-13'}),
+        mk('s004','サンプル04','承諾','2026-05-04',{companyName:'企業D',expectedRevenue:400000,bridgeDate:'2026-05-06',bridgeResult:'成功',proposalDate:'2026-05-08',recommendationDate:'2026-05-10',companyInterviewDate:'2026-05-13',offerDate:'2026-05-14',acceptanceDate:'2026-05-14'}),
+        // ── 内定 ×1（aOF=5）
+        mk('s005','サンプル05','内定','2026-05-05',{companyName:'企業E',expectedRevenue:360000,bridgeDate:'2026-05-07',bridgeResult:'成功',proposalDate:'2026-05-09',recommendationDate:'2026-05-11',companyInterviewDate:'2026-05-13',offerDate:'2026-05-14',memo:'承諾検討中'}),
+        // ── 企業面接 ×2（aCI=7）
+        mk('s006','サンプル06','企業面接','2026-05-06',{companyName:'企業F',expectedRevenue:320000,bridgeDate:'2026-05-08',bridgeResult:'成功',proposalDate:'2026-05-11',recommendationDate:'2026-05-12',memo:'5/19 一次面接'}),
+        mk('s007','サンプル07','企業面接','2026-05-07',{companyName:'企業G',expectedRevenue:380000,bridgeDate:'2026-05-09',bridgeResult:'成功',proposalDate:'2026-05-12',recommendationDate:'2026-05-13',memo:'5/21 一次面接'}),
+        // ── 推薦 ×1（aREC=8）
+        mk('s008','サンプル08','推薦','2026-05-08',{companyName:'企業H',expectedRevenue:300000,bridgeDate:'2026-05-10',bridgeResult:'成功',proposalDate:'2026-05-13',recommendationDate:'2026-05-14',memo:'5/20 面接予定'}),
+        // ── 企業提案 ×2（aPR=10）
+        mk('s009','サンプル09','企業提案','2026-05-09',{companyName:'企業I',expectedRevenue:280000,bridgeDate:'2026-05-11',bridgeResult:'成功',proposalDate:'2026-05-12',memo:'提案書送付済'}),
+        mk('s010','サンプル10','企業提案','2026-05-10',{companyName:'企業J',expectedRevenue:310000,bridgeDate:'2026-05-12',bridgeResult:'成功',proposalDate:'2026-05-13',memo:'選考検討中'}),
+        // ── ブリッジ成功 ×2（aBR=12）
+        mk('s011','サンプル11','ブリッジ成功','2026-05-12',{bridgeDate:'2026-05-14',bridgeResult:'成功',expectedRevenue:250000,memo:'求人マッチ中'}),
+        mk('s012','サンプル12','ブリッジ成功','2026-05-12',{bridgeDate:'2026-05-14',bridgeResult:'成功',expectedRevenue:270000,memo:'求人選定中'}),
+        // ── 初回面接 ×2（aINT=14）
+        mk('s013','サンプル13','初回面接','2026-05-13',{memo:'昨日実施・ブリッジ調整中'}),
+        mk('s014','サンプル14','初回面接','2026-05-14',{memo:'本日実施'}),
+        // ── 飛び ×2（飛び率 2/16 = 12.5% < 目標15%）
+        mk('s015','サンプル15','飛び(辞退)','2026-05-08',{memo:'無断キャンセル'}),
+        mk('s016','サンプル16','飛び(辞退)','2026-05-12',{memo:'当日辞退連絡'}),
+        // ── 面接設定（今後予定）×4（aFI合計=20件）
+        mk('s017','サンプル17','面接設定','2026-05-15',{memo:'明日 初回面接'}),
+        mk('s018','サンプル18','面接設定','2026-05-15',{memo:'明日 初回面接'}),
+        mk('s019','サンプル19','面接設定','2026-05-19',{memo:'来週月曜'}),
+        mk('s020','サンプル20','面接設定','2026-05-21',{memo:'来週水曜'}),
+        // ── 持ち越し（4月firstInterviewDate → 5月に企業面接以降のステージ）
+        mk('a001','テスト①','企業面接','2026-04-20',{companyName:'企業α',expectedRevenue:330000,bridgeDate:'2026-04-22',bridgeResult:'成功',proposalDate:'2026-04-25',recommendationDate:'2026-04-28',companyInterviewDate:'2026-05-16',memo:'4月推薦→5月企業面接'}),
+        mk('a002','テスト②','内定','2026-04-22',{companyName:'企業β',expectedRevenue:360000,bridgeDate:'2026-04-24',bridgeResult:'成功',proposalDate:'2026-04-27',recommendationDate:'2026-04-30',companyInterviewDate:'2026-05-06',offerDate:'2026-05-08',memo:'4月推薦→5月内定'}),
+        mk('a003','テスト③','承諾','2026-04-18',{companyName:'企業γ',expectedRevenue:350000,bridgeDate:'2026-04-20',bridgeResult:'成功',proposalDate:'2026-04-23',recommendationDate:'2026-04-27',companyInterviewDate:'2026-05-01',offerDate:'2026-05-02',acceptanceDate:'2026-05-05',memo:'4月推薦→5月承諾'}),
+
+        // ── 4月テストCA本体 (b001-b027): 目標40件・実績30件（未達）──
+        // 承諾×2（4月中に承諾完了）
+        mk('b001','テスト④','承諾','2026-04-02',{companyName:'企業P',expectedRevenue:350000,
+          bridgeDate:'2026-04-02',bridgeResult:'成功',proposalDate:'2026-04-03',recommendationDate:'2026-04-05',
+          companyInterviewDate:'2026-04-12',offerDate:'2026-04-16',acceptanceDate:'2026-04-20',joiningDate:'2026-06-01',contractAmount:350000,
+          memo:'4/20承諾→6/1入社'}),
+        mk('b002','テスト⑤','承諾','2026-04-04',{companyName:'企業Q',expectedRevenue:400000,
+          bridgeDate:'2026-04-05',bridgeResult:'成功',proposalDate:'2026-04-06',recommendationDate:'2026-04-08',
+          companyInterviewDate:'2026-04-18',offerDate:'2026-04-22',acceptanceDate:'2026-04-25',joiningDate:'2026-06-01',contractAmount:400000,
+          memo:'4/25承諾→6/1入社'}),
+        // 内定×2（承諾検討中 - 他社選考待ち）
+        mk('b003','テスト⑥','内定','2026-04-07',{companyName:'企業R',expectedRevenue:320000,
+          bridgeDate:'2026-04-08',bridgeResult:'成功',proposalDate:'2026-04-09',recommendationDate:'2026-04-11',
+          companyInterviewDate:'2026-04-21',offerDate:'2026-04-25',memo:'2社目選考待ち・承諾検討中'}),
+        mk('b004','テスト⑦','内定','2026-04-10',{companyName:'企業S',expectedRevenue:360000,
+          bridgeDate:'2026-04-11',bridgeResult:'成功',proposalDate:'2026-04-12',recommendationDate:'2026-04-14',
+          companyInterviewDate:'2026-04-24',offerDate:'2026-04-28',memo:'3社目結果待ち'}),
+        // 企業面接×3（選考中）
+        mk('b005','テスト⑧','企業面接','2026-04-12',{companyName:'企業T',expectedRevenue:300000,
+          bridgeDate:'2026-04-13',bridgeResult:'成功',proposalDate:'2026-04-14',recommendationDate:'2026-04-16',
+          companyInterviewDate:'2026-04-24',memo:'2次面接通過済み・最終待ち'}),
+        mk('b006','テスト⑨','企業面接','2026-04-14',{companyName:'企業U',expectedRevenue:280000,
+          bridgeDate:'2026-04-15',bridgeResult:'成功',proposalDate:'2026-04-16',recommendationDate:'2026-04-18',
+          companyInterviewDate:'2026-04-26',memo:'一次面接済み・結果待ち'}),
+        mk('b007','テスト⑩','推薦','2026-04-16',{companyName:'企業V',expectedRevenue:340000,
+          bridgeDate:'2026-04-17',bridgeResult:'成功',proposalDate:'2026-04-18',recommendationDate:'2026-04-20',
+          memo:'書類選考中・結果待ち'}),
+        // 推薦×3（書類選考中）
+        mk('b008','テスト⑪','推薦','2026-04-18',{companyName:'企業W',expectedRevenue:260000,
+          bridgeDate:'2026-04-19',bridgeResult:'成功',proposalDate:'2026-04-20',recommendationDate:'2026-04-22',
+          memo:'書類選考中・1週間目安'}),
+        mk('b009','テスト⑫','推薦','2026-04-20',{companyName:'企業X',expectedRevenue:290000,
+          bridgeDate:'2026-04-21',bridgeResult:'成功',proposalDate:'2026-04-22',recommendationDate:'2026-04-24',
+          memo:'書類選考中'}),
+        mk('b010','テスト⑬','推薦','2026-04-22',{companyName:'企業Y',expectedRevenue:310000,
+          bridgeDate:'2026-04-23',bridgeResult:'成功',proposalDate:'2026-04-24',recommendationDate:'2026-04-26',
+          memo:'推薦中・レジュメ送付済み'}),
+        // 企業提案×3（求人マッチ中）
+        mk('b011','テスト⑭','企業提案','2026-04-21',{expectedRevenue:240000,
+          bridgeDate:'2026-04-22',bridgeResult:'成功',proposalDate:'2026-04-23',
+          memo:'3社提案中・返答待ち'}),
+        mk('b012','テスト⑮','企業提案','2026-04-23',{expectedRevenue:270000,
+          bridgeDate:'2026-04-24',bridgeResult:'成功',proposalDate:'2026-04-25',
+          memo:'2社提案・検討中'}),
+        mk('b013','テスト⑯','企業提案','2026-04-25',{expectedRevenue:250000,
+          bridgeDate:'2026-04-26',bridgeResult:'成功',proposalDate:'2026-04-27',
+          memo:'企業提案書送付済み'}),
+        // ブリッジ成功×2
+        mk('b014','テスト⑰','ブリッジ成功','2026-04-24',{bridgeDate:'2026-04-25',bridgeResult:'成功',
+          expectedRevenue:220000,memo:'求人マッチ作業中'}),
+        mk('b015','テスト⑱','ブリッジ成功','2026-04-26',{bridgeDate:'2026-04-27',bridgeResult:'成功',
+          expectedRevenue:200000,memo:'ブリッジ通過・求人選定'}),
+        // 初回面接×2（面接済み・ブリッジ調整中）
+        mk('b016','テスト⑲','初回面接','2026-04-27',{memo:'初回面接実施・ニーズ確認済み'}),
+        mk('b017','テスト⑳','初回面接','2026-04-28',{memo:'初回面接実施・キャリア棚卸し'}),
+        // 飛び×3（飛び率10% = 3/30 < 目標15% ✓）
+        mk('b018','テスト㉑','飛び(辞退)','2026-04-08',{memo:'当日無断キャンセル'}),
+        mk('b019','テスト㉒','飛び(辞退)','2026-04-15',{memo:'前日に辞退連絡'}),
+        mk('b020','テスト㉓','飛び(辞退)','2026-04-22',{memo:'転職意欲低下で辞退'}),
+        // 面接設定×7（日程確定したが月末近く・翌月繰越）
+        mk('b021','テスト㉔','初回面接','2026-04-26',{firstInterviewDate:'2026-05-02',memo:'5/2 初回面接実施済み'}),
+        mk('b022','テスト㉕','初回面接','2026-04-27',{firstInterviewDate:'2026-05-03',memo:'5/3 初回面接実施済み'}),
+        mk('b023','テスト㉖','初回面接','2026-04-28',{firstInterviewDate:'2026-05-04',memo:'5/4 初回面接実施済み'}),
+        mk('b024','テスト㉗','初回面接','2026-04-28',{firstInterviewDate:'2026-05-05',memo:'5/5 初回面接実施済み'}),
+        mk('b025','テスト㉘','初回面接','2026-04-29',{firstInterviewDate:'2026-05-07',memo:'5/7 初回面接実施済み'}),
+        mk('b026','テスト㉙','初回面接','2026-04-30',{firstInterviewDate:'2026-05-08',memo:'5/8 初回面接実施済み'}),
+        mk('b027','テスト㉚','初回面接','2026-04-30',{firstInterviewDate:'2026-05-09',memo:'5/9 初回面接実施済み'}),
+        // ── 追加10件（テスト㉛〜テスト㊵）: 計40件 ──
+        mk('b028','テスト㉛','飛び(辞退)','2026-04-05',{memo:'当日ドタキャン・連絡なし'}),
+        mk('b029','テスト㉜','飛び(辞退)','2026-04-10',{memo:'直前で転職意欲なくなった'}),
+        mk('b030','テスト㉝','ブリッジ成功','2026-04-25',{bridgeDate:'2026-04-26',bridgeResult:'成功',
+          expectedRevenue:230000,memo:'求人マッチ中・3社検討'}),
+        mk('b031','テスト㉞','ブリッジ成功','2026-04-26',{bridgeDate:'2026-04-27',bridgeResult:'成功',
+          expectedRevenue:210000,memo:'求人選定中・業界絞り込み'}),
+        mk('b032','テスト㉟','初回面接','2026-04-27',{memo:'面接実施済み・ブリッジ日程調整中'}),
+        mk('b033','テスト㊱','初回面接','2026-04-28',{memo:'面接実施済み・ヒアリング完了'}),
+        mk('b034','テスト㊲','初回面接','2026-04-28',{firstInterviewDate:'2026-05-07',memo:'5/7 初回面接実施済み'}),
+        mk('b035','テスト㊳','初回面接','2026-04-29',{firstInterviewDate:'2026-05-08',memo:'5/8 初回面接実施済み'}),
+        mk('b036','テスト㊴','初回面接','2026-04-29',{firstInterviewDate:'2026-05-09',memo:'5/9 初回面接実施済み'}),
+        mk('b037','テスト㊵','初回面接','2026-04-30',{firstInterviewDate:'2026-05-10',memo:'5/10 初回面接実施済み'}),
+      ];
+      localStorage.setItem('test-crm-candidates', JSON.stringify(sampleCandidates));
+    }
+
+    // ========== 承諾済みデータ ==========
+    if (!localStorage.getItem('test-crm-accepted')) {
+      localStorage.setItem('test-crm-accepted', JSON.stringify([
+        {id:'s001',name:'サンプル01',assignedCA:'テストCA',contractAmount:380000,acceptedAt:'2026-05-11',company:'企業A',joiningDate:'2026-06-01'},
+        {id:'s002',name:'サンプル02',assignedCA:'テストCA',contractAmount:420000,acceptedAt:'2026-05-12',company:'企業B',joiningDate:'2026-06-01'},
+        {id:'s003',name:'サンプル03',assignedCA:'テストCA',contractAmount:350000,acceptedAt:'2026-05-13',company:'企業C',joiningDate:'2026-06-16'},
+        {id:'s004',name:'サンプル04',assignedCA:'テストCA',contractAmount:400000,acceptedAt:'2026-05-14',company:'企業D',joiningDate:'2026-06-01'},
+        {id:'a003',name:'テスト③',assignedCA:'テストCA',contractAmount:350000,acceptedAt:'2026-05-05',company:'企業γ',joiningDate:'2026-06-01'},
+        // 4月承諾（4月中に承諾完了）
+        {id:'b001',name:'テスト④',assignedCA:'テストCA',contractAmount:350000,acceptedAt:'2026-04-20',company:'企業P',joiningDate:'2026-06-01',postAcceptMeetingDate:'2026-04-25',procedureCompleteDate:'2026-05-02'},
+        {id:'b002',name:'テスト⑤',assignedCA:'テストCA',contractAmount:400000,acceptedAt:'2026-04-25',company:'企業Q',joiningDate:'2026-06-01',postAcceptMeetingDate:'2026-04-30',procedureCompleteDate:'2026-05-07'},
+      ]));
+    }
+
+    // ========== 企業面接スケジュール（selectionStatus は画面の選択肢と一致させる）==========
+    // 有効値: 書類選考中/一次面接/二次面接/最終面接/選考結果待ち/オファー面談/内定/内定承諾/入社確定/選考辞退/書類お見送り/面接お見送り
+    if (!localStorage.getItem('test-crm-interview-plans')) {
+      localStorage.setItem('test-crm-interview-plans', JSON.stringify({
+        // 承諾済み（入社準備中）
+        's001': [{company:'企業A',jobType:'営業',date:'2026-05-11',selectionStatus:'入社確定'}],
+        's002': [{company:'企業B',jobType:'営業',date:'2026-05-12',selectionStatus:'内定承諾'}],
+        's003': [{company:'企業C',jobType:'営業',date:'2026-05-13',selectionStatus:'入社確定'}],
+        's004': [{company:'企業D',jobType:'営業',date:'2026-05-14',selectionStatus:'内定承諾'}],
+        // 内定（承諾検討中）
+        's005': [{company:'企業E',jobType:'営業',date:'2026-05-14',selectionStatus:'内定',offerDeadline:'2026-05-20'}],
+        // 企業面接（一次面接予定）
+        's006': [{company:'企業F',jobType:'営業',date:'2026-05-19',selectionStatus:'一次面接',pendingConfirm:false,offerDeadline:''}],
+        's007': [{company:'企業G',jobType:'営業',date:'2026-05-21',selectionStatus:'一次面接',pendingConfirm:false,offerDeadline:''}],
+        // 推薦（書類選考中）
+        's008': [{company:'企業H',jobType:'営業',date:'2026-05-20',selectionStatus:'書類選考中'}],
+        // 企業提案（書類選考中）
+        's009': [{company:'企業I',jobType:'営業',date:'',selectionStatus:'書類選考中'}],
+        's010': [{company:'企業J',jobType:'営業',date:'',selectionStatus:'書類選考中'}],
+        // 持ち越し候補者
+        'a001': [{company:'企業α',jobType:'営業',date:'2026-05-16',selectionStatus:'一次面接',pendingConfirm:true,offerDeadline:''}],
+        'a002': [{company:'企業β',jobType:'営業',date:'2026-05-08',selectionStatus:'内定',offerDeadline:'2026-05-20'}],
+        'a003': [{company:'企業γ',jobType:'営業',date:'2026-05-05',selectionStatus:'入社確定'}],
+        // 4月承諾済み
+        'b001': [{company:'企業P',jobType:'営業',date:'2026-04-20',selectionStatus:'入社確定'}],
+        'b002': [{company:'企業Q',jobType:'営業',date:'2026-04-25',selectionStatus:'入社確定'}],
+        // 4月内定（承諾検討中）
+        'b003': [{company:'企業R',jobType:'営業',date:'2026-04-25',selectionStatus:'内定',offerDeadline:'2026-05-16'}],
+        'b004': [{company:'企業S',jobType:'営業',date:'2026-04-28',selectionStatus:'内定'}],
+        // 4月企業面接（選考中）
+        'b005': [{company:'企業T',jobType:'営業',date:'2026-05-12',selectionStatus:'最終面接'}],
+        'b006': [{company:'企業U',jobType:'営業',date:'2026-05-08',selectionStatus:'選考結果待ち'}],
+        'b007': [{company:'企業V',jobType:'営業',date:'',selectionStatus:'書類選考中'}],
+        // 4月推薦（書類選考中）
+        'b008': [{company:'企業W',jobType:'営業',date:'',selectionStatus:'書類選考中'}],
+        'b009': [{company:'企業X',jobType:'営業',date:'',selectionStatus:'書類選考中'}],
+        'b010': [{company:'企業Y',jobType:'営業',date:'',selectionStatus:'書類選考中'}],
+      }));
+    }
+
+    // ========== 企業面接管理メタ（見込み・他社選考・他エージェント）==========
+    if (!localStorage.getItem('test-crm-candidate-meta')) {
+      localStorage.setItem('test-crm-candidate-meta', JSON.stringify({
+        's001': {rank:'100%', hasOtherSelection:'なし', hasAgent:'なし', desiredJoinMonth:'2026-06'},
+        's002': {rank:'100%', hasOtherSelection:'なし', hasAgent:'なし', desiredJoinMonth:'2026-06'},
+        's003': {rank:'100%', hasOtherSelection:'なし', hasAgent:'なし', desiredJoinMonth:'2026-06'},
+        's004': {rank:'100%', hasOtherSelection:'あり', hasAgent:'なし', desiredJoinMonth:'2026-06'},
+        's005': {rank:'100%', hasOtherSelection:'あり', hasAgent:'あり', desiredJoinMonth:'2026-06'},
+        's006': {rank:'70%',  hasOtherSelection:'あり', hasAgent:'あり', desiredJoinMonth:'2026-07'},
+        's007': {rank:'70%',  hasOtherSelection:'なし', hasAgent:'なし', desiredJoinMonth:'2026-07'},
+        's008': {rank:'50%',  hasOtherSelection:'あり', hasAgent:'なし', desiredJoinMonth:'2026-07'},
+        // s009・s010 は企業提案（推薦前）なので見込みランクなし
+        's009': {hasOtherSelection:'なし', hasAgent:'なし', desiredJoinMonth:'2026-07'},
+        's010': {hasOtherSelection:'あり', hasAgent:'あり', desiredJoinMonth:'2026-08'},
+        // s011・s012 はブリッジ成功（推薦前）なので見込みランクなし
+        's011': {hasOtherSelection:'なし', hasAgent:'なし', desiredJoinMonth:'2026-07'},
+        's012': {hasOtherSelection:'なし', hasAgent:'なし', desiredJoinMonth:'2026-08'},
+        // 持ち越し候補者（見込みランクあり）
+        'a001': {rank:'70%', hasOtherSelection:'なし', hasAgent:'なし', desiredJoinMonth:'2026-07'},
+        'a002': {rank:'100%', hasOtherSelection:'なし', hasAgent:'なし', desiredJoinMonth:'2026-06'},
+        'a003': {rank:'100%', hasOtherSelection:'なし', hasAgent:'なし', desiredJoinMonth:'2026-06'},
+        // 4月承諾済み
+        'b001': {rank:'100%', hasOtherSelection:'なし', hasAgent:'なし', desiredJoinMonth:'2026-06'},
+        'b002': {rank:'100%', hasOtherSelection:'なし', hasAgent:'なし', desiredJoinMonth:'2026-06'},
+        // 4月内定（承諾検討中）
+        'b003': {rank:'70%', hasOtherSelection:'あり', hasAgent:'あり', desiredJoinMonth:'2026-06'},
+        'b004': {rank:'70%', hasOtherSelection:'あり', hasAgent:'なし', desiredJoinMonth:'2026-06'},
+        // 4月企業面接（選考中）
+        'b005': {rank:'70%', hasOtherSelection:'なし', hasAgent:'なし', desiredJoinMonth:'2026-07'},
+        'b006': {rank:'50%', hasOtherSelection:'あり', hasAgent:'あり', desiredJoinMonth:'2026-07'},
+        'b007': {rank:'50%', hasOtherSelection:'なし', hasAgent:'なし', desiredJoinMonth:'2026-07'},
+        // 4月推薦（見込みランク設定済み）
+        'b008': {rank:'50%', hasOtherSelection:'なし', hasAgent:'なし', desiredJoinMonth:'2026-07'},
+        'b009': {rank:'50%', hasOtherSelection:'あり', hasAgent:'なし', desiredJoinMonth:'2026-08'},
+        'b010': {rank:'50%', hasOtherSelection:'なし', hasAgent:'なし', desiredJoinMonth:'2026-07'},
+      }));
+    }
+
+      setReady(true);
+    }
+    init();
+  }, []);
+  if (!ready) return <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'18px',color:'#6b7280'}}>読み込み中...</div>;
+  return <App />;
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Root />);
+
+</script>
+</body>
