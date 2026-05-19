@@ -179,15 +179,32 @@ select.filter-select{background:var(--bg-base);border:1px solid var(--border);bo
   } catch(e) {}
 })();
 
-// 承諾シードデータ
+// 承諾シードデータ（実データ）
 (function(){
   try {
     var _ap='2026-04';
-    var existing=JSON.parse(localStorage.getItem('crm-accepted')||'[]');
-    var hasApril=existing.some(function(a){return (a.acceptedAt||a.acceptanceDate||'').startsWith(_ap);});
-    if(!hasApril){
-      var seed=[{"id":"0a675541-7d55-4197-bdb9-1861870cba78","name":"平田 充希","age":28,"assignedCA":"朝田","companyName":"ネクストレンド","acceptedAt":"2026-04-23","acceptanceDate":"2026-04-23","contractAmount":250000,"result":"承諾","joiningDate":""},{"id":"3310f592-4d0c-456a-a311-889038c667df","name":"村本 凱","age":22,"assignedCA":"秋元","companyName":"ネクストレンド","acceptedAt":"2026-04-19","acceptanceDate":"2026-04-19","contractAmount":250000,"result":"承諾","joiningDate":""},{"id":"12c398fe-1aa3-44a0-bcdf-bb64a655e9a3","name":"西口 永遠","age":26,"assignedCA":"髙橋","companyName":"ネクストレンド","acceptedAt":"2026-04-24","acceptanceDate":"2026-04-24","contractAmount":250000,"result":"承諾","joiningDate":""},{"id":"1aaf9ccd-6fb0-4a1d-b1a4-ad0a96569d44","name":"湊 優空","age":21,"assignedCA":"髙橋","companyName":"ネクストレンド","acceptedAt":"2026-04-26","acceptanceDate":"2026-04-26","contractAmount":250000,"result":"承諾","joiningDate":""},{"id":"8eaaff21-acc8-44db-ad71-7cd223e61362","name":"須田 千尋","age":22,"assignedCA":"堀切","companyName":"ネクストレンド","acceptedAt":"2026-04-18","acceptanceDate":"2026-04-18","contractAmount":250000,"result":"承諾","joiningDate":""},{"id":"30d0e37e-19a9-412c-ac81-1b3f57306a72","name":"毎田 恵","age":34,"assignedCA":"朝田","companyName":"ネクストレンド","acceptedAt":"2026-04-26","acceptanceDate":"2026-04-26","contractAmount":250000,"result":"承諾","joiningDate":""},{"id":"c6c600a8-39ea-41cd-9bb9-385d7146ff97","name":"屋禰 慶至","age":35,"assignedCA":"秋元","companyName":"ネクストレンド","acceptedAt":"2026-04-25","acceptanceDate":"2026-04-25","contractAmount":250000,"result":"承諾","joiningDate":""},{"id":"6a66e3a0-1a8b-46b6-9967-f8b3aca2ae91","name":"照屋 雄略","age":22,"assignedCA":"堀切","companyName":"ネクストレンド","acceptedAt":"2026-04-24","acceptanceDate":"2026-04-24","contractAmount":250000,"result":"承諾","joiningDate":""},{"id":"93bb3a4e-3c5e-476c-8cf7-f5cec5e952e4","name":"小野寺 典大","age":38,"assignedCA":"秋元","companyName":"ネクストレンド","acceptedAt":"2026-04-18","acceptanceDate":"2026-04-18","contractAmount":250000,"result":"承諾","joiningDate":""},{"id":"5027651d-9d40-44ec-9478-010ccd06d51a","name":"富永 秀栄","age":29,"assignedCA":"髙橋","companyName":"ネクストレンド","acceptedAt":"2026-04-21","acceptanceDate":"2026-04-21","contractAmount":250000,"result":"承諾","joiningDate":""},{"id":"c4eb2315-d8db-4708-a6d3-be5834982b9a","name":"塚本 拓未","age":20,"assignedCA":"秋元","companyName":"ネクストレンド","acceptedAt":"2026-04-26","acceptanceDate":"2026-04-26","contractAmount":250000,"result":"承諾","joiningDate":""},{"id":"6364c3da-5fb2-4790-a8a1-c81165c6ebb9","name":"瀧元 優人","age":26,"assignedCA":"髙橋","companyName":"ネクストレンド","acceptedAt":"2026-04-23","acceptanceDate":"2026-04-23","contractAmount":250000,"result":"承諾","joiningDate":""},{"id":"603ec8e7-f66a-40a5-b0de-553dc58d6049","name":"高橋 碩之","age":34,"assignedCA":"朝田","companyName":"ネクストレンド","acceptedAt":"2026-04-27","acceptanceDate":"2026-04-27","contractAmount":250000,"result":"承諾","joiningDate":""},{"id":"5b49e02c-996e-4395-9fe6-fee56a4a1e6b","name":"中尾 杏","age":23,"assignedCA":"朝田","companyName":"ネクストレンド","acceptedAt":"2026-04-25","acceptanceDate":"2026-04-25","contractAmount":250000,"result":"承諾","joiningDate":""},{"id":"1df0cdbe-f39f-4b34-b030-78e2b5fb3249","name":"小嶺 明日香","age":26,"assignedCA":"秋元","companyName":"ネクストレンド","acceptedAt":"2026-04-25","acceptanceDate":"2026-04-25","contractAmount":250000,"result":"承諾","joiningDate":""}];
-      localStorage.setItem('crm-accepted',JSON.stringify(existing.concat(seed)));
+    if(localStorage.getItem('crm-accepted-seed-ver')!=='real-v1'){
+      var existing=JSON.parse(localStorage.getItem('crm-accepted')||'[]');
+      var nonApril=existing.filter(function(a){return !(a.acceptedAt||a.acceptanceDate||'').startsWith(_ap);});
+      var seed=[
+        {"id":"re01-0000-0000-0000-000000000001","name":"岡田莉沙","age":null,"assignedCA":"平野","companyName":"リクルートB","acceptedAt":"2026-04-06","acceptanceDate":"2026-04-06","contractAmount":"","result":"承諾","joiningDate":""},
+        {"id":"re01-0000-0000-0000-000000000002","name":"外村健太","age":null,"assignedCA":"堀切","companyName":"ビーネ","acceptedAt":"2026-04-15","acceptanceDate":"2026-04-15","contractAmount":"","result":"承諾","joiningDate":""},
+        {"id":"re01-0000-0000-0000-000000000003","name":"鹿田千尋","age":null,"assignedCA":"中嶋","companyName":"リクルートR&D","acceptedAt":"2026-04-14","acceptanceDate":"2026-04-14","contractAmount":"","result":"承諾","joiningDate":""},
+        {"id":"re01-0000-0000-0000-000000000004","name":"福田由奈","age":null,"assignedCA":"中嶋","companyName":"早稲田学習研究会","acceptedAt":"2026-04-14","acceptanceDate":"2026-04-14","contractAmount":"","result":"承諾","joiningDate":""},
+        {"id":"re01-0000-0000-0000-000000000005","name":"平井楓人","age":null,"assignedCA":"土橋","companyName":"","acceptedAt":"2026-04-28","acceptanceDate":"2026-04-28","contractAmount":"","result":"承諾","joiningDate":""},
+        {"id":"re01-0000-0000-0000-000000000006","name":"宮下駿樹","age":null,"assignedCA":"土橋","companyName":"SSE機械","acceptedAt":"2026-04-22","acceptanceDate":"2026-04-22","contractAmount":"","result":"承諾","joiningDate":""},
+        {"id":"re01-0000-0000-0000-000000000007","name":"名倉優哉","age":null,"assignedCA":"土橋","companyName":"","acceptedAt":"2026-04-25","acceptanceDate":"2026-04-25","contractAmount":"","result":"承諾","joiningDate":""},
+        {"id":"re01-0000-0000-0000-000000000008","name":"藤本大樹","age":null,"assignedCA":"土橋","companyName":"SSE IT","acceptedAt":"2026-04-20","acceptanceDate":"2026-04-20","contractAmount":"","result":"承諾","joiningDate":""},
+        {"id":"re01-0000-0000-0000-000000000009","name":"吉田輝正","age":null,"assignedCA":"土橋","companyName":"","acceptedAt":"2026-04-17","acceptanceDate":"2026-04-17","contractAmount":"","result":"承諾","joiningDate":""},
+        {"id":"re01-0000-0000-0000-000000000010","name":"宮内聖和","age":null,"assignedCA":"秋元","companyName":"","acceptedAt":"2026-04-10","acceptanceDate":"2026-04-10","contractAmount":"","result":"承諾","joiningDate":""},
+        {"id":"re01-0000-0000-0000-000000000011","name":"堀丞","age":null,"assignedCA":"山下","companyName":"","acceptedAt":"2026-04-28","acceptanceDate":"2026-04-28","contractAmount":"","result":"承諾","joiningDate":""},
+        {"id":"re01-0000-0000-0000-000000000012","name":"前田幸樹","age":null,"assignedCA":"山下","companyName":"","acceptedAt":"2026-04-14","acceptanceDate":"2026-04-14","contractAmount":"","result":"承諾","joiningDate":""},
+        {"id":"re01-0000-0000-0000-000000000013","name":"大貫柾一郎","age":null,"assignedCA":"中嶋","companyName":"","acceptedAt":"2026-04-15","acceptanceDate":"2026-04-15","contractAmount":"","result":"承諾","joiningDate":""},
+        {"id":"re01-0000-0000-0000-000000000014","name":"岡本幸輝","age":null,"assignedCA":"中嶋","companyName":"","acceptedAt":"2026-04-10","acceptanceDate":"2026-04-10","contractAmount":"","result":"承諾","joiningDate":""},
+        {"id":"re01-0000-0000-0000-000000000015","name":"石川一明","age":null,"assignedCA":"秋元","companyName":"","acceptedAt":"2026-04-28","acceptanceDate":"2026-04-28","contractAmount":"","result":"承諾","joiningDate":""}
+      ];
+      localStorage.setItem('crm-accepted',JSON.stringify(nonApril.concat(seed)));
+      localStorage.setItem('crm-accepted-seed-ver','real-v1');
     }
   }catch(e){}
 })();
