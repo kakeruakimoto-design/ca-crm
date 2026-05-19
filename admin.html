@@ -179,6 +179,66 @@ select.filter-select{background:var(--bg-base);border:1px solid var(--border);bo
   } catch(e) {}
 })();
 
+// v4マイグレーション - スプレッドシート実在候補者の企業面接・推薦日を反映
+(function(){
+  try {
+    if(localStorage.getItem('crm-candidates-seed-ver')!=='v4'){
+      var cands=JSON.parse(localStorage.getItem('crm-candidates')||'[]');
+      // スプレッドシートから抽出した実在候補者（4月企業面接）
+      var realApril=[
+        {name:'山田誠一朗',ca:'秋元',ci:'2026-04-13',rec:'2026-04-06'},
+        {name:'宮内聖和',ca:'秋元',ci:'2026-04-03',rec:'2026-03-27'},
+        {name:'田中龍次',ca:'秋元',ci:'2026-04-15',rec:'2026-04-08'},
+        {name:'佐久間尚正',ca:'秋元',ci:'2026-04-01',rec:'2026-03-25'},
+        {name:'永山翼',ca:'秋元',ci:'2026-04-14',rec:'2026-04-07'},
+        {name:'森友',ca:'秋元',ci:'2026-04-25',rec:'2026-04-18'},
+        {name:'東',ca:'秋元',ci:'2026-04-28',rec:'2026-04-21'},
+        {name:'別井蹴翔',ca:'秋元',ci:'2026-04-18',rec:'2026-04-11'},
+        {name:'伊藤智次',ca:'秋元',ci:'2026-04-15',rec:'2026-04-08'},
+        {name:'平松稜弥',ca:'秋元',ci:'2026-04-23',rec:'2026-04-16'},
+        {name:'後野伶衣',ca:'秋元',ci:'2026-04-03',rec:'2026-03-27'},
+        {name:'古澤秀幸',ca:'秋元',ci:'2026-04-03',rec:'2026-03-27'},
+        {name:'稲山慶太',ca:'秋元',ci:'2026-04-01',rec:'2026-03-25'},
+        {name:'田代翼',ca:'堀切',ci:'2026-04-23',rec:'2026-04-16'},
+        {name:'外村健太',ca:'堀切',ci:'2026-04-07',rec:'2026-03-31'},
+        {name:'名倉優哉',ca:'土橋',ci:'2026-04-16',rec:'2026-04-09'},
+        {name:'西村涼',ca:'土橋',ci:'2026-04-08',rec:'2026-04-01'},
+        {name:'吉田輝正',ca:'土橋',ci:'2026-04-03',rec:'2026-03-27'},
+        {name:'中村有里',ca:'後藤',ci:'2026-04-27',rec:'2026-04-20'},
+        {name:'高橋世実',ca:'後藤',ci:'2026-04-23',rec:'2026-04-16'},
+        {name:'羽立海人',ca:'山下',ci:'2026-04-08',rec:'2026-04-01'},
+        {name:'前田幸樹',ca:'山下',ci:'2026-04-21',rec:'2026-04-14'}
+      ];
+      // 既存の偽4月企業面接候補者を特定して置き換え
+      var aprilFakes=cands.filter(function(c){
+        return (c.companyInterviewDate||'').startsWith('2026-04')&&!c._real;
+      }).sort(function(a,b){return a.companyInterviewDate.localeCompare(b.companyInterviewDate);});
+      var replaceMap={};
+      aprilFakes.slice(0,realApril.length).forEach(function(c,i){replaceMap[c.id]=realApril[i];});
+      var updated=cands.map(function(c){
+        if(replaceMap[c.id]){
+          var r=replaceMap[c.id];
+          return Object.assign({},c,{name:r.name,assignedCA:r.ca,companyInterviewDate:r.ci,recommendationDate:r.rec,_real:true});
+        }
+        return c;
+      });
+      // 5月の実在候補者を新規追加
+      var mayReal=[
+        {name:'石川一明',ca:'秋元',ci:'2026-05-08',rec:'2026-05-01'},
+        {name:'高橋彬',ca:'秋元',ci:'2026-05-08',rec:'2026-05-01'},
+        {name:'小池稔典',ca:'秋元',ci:'2026-05-30',rec:'2026-05-23'}
+      ];
+      mayReal.forEach(function(r,i){
+        updated.push({id:'real-v4-may-'+i,name:r.name,assignedCA:r.ca,
+          companyInterviewDate:r.ci,recommendationDate:r.rec,
+          firstInterviewDate:'',offerDate:'',status:'',_real:true});
+      });
+      localStorage.setItem('crm-candidates',JSON.stringify(updated));
+      localStorage.setItem('crm-candidates-seed-ver','v4');
+    }
+  }catch(e){}
+})();
+
 // 承諾シードデータ（実データ）
 (function(){
   try {
