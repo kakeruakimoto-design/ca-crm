@@ -2079,11 +2079,11 @@ function CandidatesPage() {
   };
 
   const handleInlineStatus = (id, newStatus) => {
-    const updated = candidates.map(c => c.id === id ? {...c, status: newStatus} : c);
+    const updated = candidates.map(c => c.id === id ? {...c, status: newStatus, caStatus: newStatus} : c);
     setCandidates(updated);
     try {
       const stored = JSON.parse(localStorage.getItem('crm-candidates') || '[]');
-      const merged = stored.map(c => c.id === id ? {...c, status: newStatus} : c);
+      const merged = stored.map(c => c.id === id ? {...c, status: newStatus, caStatus: newStatus} : c);
       localStorage.setItem('crm-candidates', JSON.stringify(merged));
       window.dispatchEvent(new CustomEvent('crm-data-changed'));
     } catch {}
