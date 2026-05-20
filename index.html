@@ -2079,11 +2079,28 @@ function CandidatesPage() {
   };
 
   const handleInlineStatus = (id, newStatus) => {
-    const updated = candidates.map(c => c.id === id ? {...c, status: newStatus, caStatus: newStatus} : c);
+    // ステータス変更時に対応する日付フィールドを自動セット（未設定の場合のみ）
+    const todayISO = new Date().toISOString().slice(0, 10);
+    const autoDateFields = (c, st) => {
+      const extra = {};
+      if (st === 'ブリッジ成功' && !c.bridgeDate)         { extra.bridgeDate = todayISO; extra.bridgeResult = '成功'; }
+      if (st === '企業提案'     && !c.proposalDate)        { extra.proposalDate = todayISO; }
+      if (st === '推薦'         && !c.recommendationDate)  { extra.recommendationDate = todayISO; }
+      if (st === '企業面接'     && !c.companyInterviewDate){ extra.companyInterviewDate = todayISO; }
+      if (st === '内定'         && !c.offerDate)           { extra.offerDate = todayISO; }
+      return extra;
+    };
+    const updated = candidates.map(c => c.id === id
+      ? {...c, status: newStatus, caStatus: newStatus, ...autoDateFields(c, newStatus)}
+      : c
+    );
     setCandidates(updated);
     try {
       const stored = JSON.parse(localStorage.getItem('crm-candidates') || '[]');
-      const merged = stored.map(c => c.id === id ? {...c, status: newStatus, caStatus: newStatus} : c);
+      const merged = stored.map(c => c.id === id
+        ? {...c, status: newStatus, caStatus: newStatus, ...autoDateFields(c, newStatus)}
+        : c
+      );
       localStorage.setItem('crm-candidates', JSON.stringify(merged));
       window.dispatchEvent(new CustomEvent('crm-data-changed'));
     } catch {}
