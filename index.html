@@ -1808,7 +1808,11 @@ function SummaryPage({ period }) {
     setMetrics(_loadMyMetrics(period)); // 月変更時に即時更新
     const reload = () => setMetrics(_loadMyMetrics(period));
     window.addEventListener('focus', reload);
-    return () => window.removeEventListener('focus', reload);
+    window.addEventListener('crm-data-changed', reload);
+    return () => {
+      window.removeEventListener('focus', reload);
+      window.removeEventListener('crm-data-changed', reload);
+    };
   }, [period]);
   const MY_KPI = metrics.kpi;
   const STAGE_PROGRESS = metrics.stageProgress;
@@ -1820,7 +1824,11 @@ function SummaryPage({ period }) {
   React.useEffect(() => {
     const reloadS = () => setSummaryData(_loadSummaryData());
     window.addEventListener('focus', reloadS);
-    return () => window.removeEventListener('focus', reloadS);
+    window.addEventListener('crm-data-changed', reloadS);
+    return () => {
+      window.removeEventListener('focus', reloadS);
+      window.removeEventListener('crm-data-changed', reloadS);
+    };
   }, []);
   const { interviewsFirstToday: INTERVIEWS_FIRST_TODAY, interviewsToday: INTERVIEWS_TODAY,
     interviewsUpcoming: INTERVIEWS_UPCOMING, pendingReply: PENDING_REPLY,
@@ -2077,6 +2085,7 @@ function CandidatesPage() {
       const stored = JSON.parse(localStorage.getItem('crm-candidates') || '[]');
       const merged = stored.map(c => c.id === id ? {...c, status: newStatus} : c);
       localStorage.setItem('crm-candidates', JSON.stringify(merged));
+      window.dispatchEvent(new CustomEvent('crm-data-changed'));
     } catch {}
   };
 
@@ -2087,6 +2096,7 @@ function CandidatesPage() {
       const stored = JSON.parse(localStorage.getItem('crm-candidates') || '[]');
       const merged = stored.map(c => c.id === id ? {...c, [field]: value} : c);
       localStorage.setItem('crm-candidates', JSON.stringify(merged));
+      window.dispatchEvent(new CustomEvent('crm-data-changed'));
     } catch {}
   };
 
@@ -2104,6 +2114,7 @@ function CandidatesPage() {
       const stored = JSON.parse(localStorage.getItem('crm-candidates') || '[]');
       const merged = stored.map(x => x.id === c.id ? {...x, ...changes} : x);
       localStorage.setItem('crm-candidates', JSON.stringify(merged));
+      window.dispatchEvent(new CustomEvent('crm-data-changed'));
     } catch {}
   };
 
@@ -2265,7 +2276,11 @@ function ProgressPage({ period }) {
     setMetrics(_loadMyMetrics(period)); // 月変更時に即時更新
     const reload = () => setMetrics(_loadMyMetrics(period));
     window.addEventListener('focus', reload);
-    return () => window.removeEventListener('focus', reload);
+    window.addEventListener('crm-data-changed', reload);
+    return () => {
+      window.removeEventListener('focus', reload);
+      window.removeEventListener('crm-data-changed', reload);
+    };
   }, [period]);
   const MY_KPI = metrics.kpi;
   const STAGE_PROGRESS = metrics.stageProgress;
