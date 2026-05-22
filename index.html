@@ -3464,27 +3464,44 @@ function readFileAsBase64(file) {
 }
 
 function SuisenPrepPage() {
-  const [subTab, setSubTab] = React.useState('suisen');
-  const [pdfFiles, setPdfFiles] = React.useState([]); // [{name, base64}]
+  const [subTab, setSubTab] = React.useState('resume');
+  const [pdfFiles, setPdfFiles] = React.useState([]);
   const [additionalInfo, setAdditionalInfo] = React.useState('');
   const [result, setResult] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
   const [copied, setCopied] = React.useState(false);
 
+  // チェックタブ用ステート
+  const [checkResume, setCheckResume] = React.useState('');
+  const [checkShokumu, setCheckShokumu] = React.useState('');
+  const [checkSuisen, setCheckSuisen] = React.useState('');
+  const [checkResult, setCheckResult] = React.useState('');
+  const [checkLoading, setCheckLoading] = React.useState(false);
+  const [checkError, setCheckError] = React.useState('');
+  const [checkCopied, setCheckCopied] = React.useState(false);
+
   const SUB_TABS = [
-    { id: 'suisen', label: '📄 推薦文作成' },
-    { id: 'resume', label: '✏️ 履歴書添削' },
-    { id: 'shokumu', label: '📋 職務経歴書添削' },
+    { id: 'resume',  label: '📄 履歴書' },
+    { id: 'shokumu', label: '📋 職務経歴書' },
+    { id: 'suisen',  label: '✉️ 推薦文' },
+    { id: 'check',   label: '✅ チェック' },
   ];
 
-  const CONFIG = {
-    suisen:  { multiple: true,  label: '履歴書・職務経歴書PDF', hint: '複数可（履歴書＋職務経歴書を同時に添付できます）', addLabel: '手入力情報（年収・就業可能時期・紹介先企業名など）', addPlaceholder: '現年収：〇〇万円\n希望年収：〇〇万円\n就業可能時期：〇〇\n現職の雇用形態：正社員 / 離職中\n自家用車の有無：有 / 無\n既往歴の有無：なし\nタトゥーの有無：なし\n犯罪歴の有無：なし\n希望勤務地：〇〇\n出張に関して：可\n転居に関して：不可\n希望勤務地の理由：〇〇\n\n紹介先企業名：\n1. スタッフサービス・エンジニアリング\n2. BREXA Technology\n\n希望選考方法：対面 / オンライン\n\n面接候補日：自己記入', addHeight: '180px', btnLabel: '推薦文を生成', btnColor: 'var(--accent)' },
-    resume:  { multiple: false, label: '履歴書PDF', hint: '履歴書PDFを1枚選択してください', addLabel: '追加情報・注意点（任意）', addPlaceholder: '例：エンジニア職への転職希望', addHeight: '80px', btnLabel: '履歴書を添削', btnColor: 'var(--success)' },
-    shokumu: { multiple: false, label: '職務経歴書PDF', hint: '職務経歴書PDFを1枚選択してください', addLabel: '追加情報・注意点（任意）', addPlaceholder: '例：IT未経験からのキャリアチェンジ', addHeight: '80px', btnLabel: '職務経歴書を添削', btnColor: '#7c3aed' },
+  // 各タブの参照ガイドテキスト
+  const GUIDE = {
+    resume: `① 投稿ルール\n・メンションは不要（誰もメンションしない）\n・求職者から受領した履歴書のURLを必ず添付\n\n② 記載フォーマット（必須項目）\n・趣味・特技：\n・扶養家族数（配偶者を除く）：\n・配偶者の有無：\n・配偶者の扶養義務：\n・各企業の雇用形態：`,
+    shokumu: `■職務経歴書作成\n　履歴書PDFを添付 + Google DriveのURLを送信してください。\n　（1メッセージにまとめてもOK）\n\n受ける企業と職種も記載してください。\n自己PRを寄せて記載してくれます。\n求職者からの職務経歴書がない場合は業務内容等はテキストで記載すると良い`,
+    suisen: `■推薦文作成\n　履歴書PDFと職務経歴書PDFを1枚ずつ立て続けに添付してください。\n　どちらかのメッセージに推薦文フォーマット（現年収／希望年収／紹介先企業名 など）を添えてください。\n\n【推薦文フォーマット】\n現年収：200万円\n希望年収：300万円以上\n就業可能時期：2026年5月\n現職の雇用形態：なし\nステータス：中途\n自家用車の有無：無\n既往歴の有無：無\n犯罪歴の有無：無\n入社後から約2ヶ月後までの費用：有\n\n\n希望勤務地：東京都　一都三県\n出張に関して：可能（期間：特になし、範囲：一都三県）\n転居に関して：不可\n希望勤務地の理由：特になし\n備考：夜勤対応可能\n\n紹介先企業名：\n①\n②\n③\n\n希望選考方法：オンライン\n\n=空白期間＝（履歴書から出力、内容は自己記入）\n\n面接候補日：\n月　日　時間`,
   };
 
-  const cfg = CONFIG[subTab];
+  const CONFIG = {
+    resume:  { multiple: false, label: '履歴書PDF', hint: '履歴書PDFを1枚選択してください', addLabel: '追加情報・注意点（任意）', addPlaceholder: '例：エンジニア職への転職希望', addHeight: '80px', btnLabel: '履歴書を添削', btnColor: 'var(--success)' },
+    shokumu: { multiple: false, label: '職務経歴書PDF', hint: '職務経歴書PDFを1枚選択してください', addLabel: '追加情報・注意点（任意）', addPlaceholder: '例：IT未経験からのキャリアチェンジ', addHeight: '80px', btnLabel: '職務経歴書を添削', btnColor: '#7c3aed' },
+    suisen:  { multiple: true,  label: '履歴書・職務経歴書PDF', hint: '複数可（履歴書＋職務経歴書を同時に添付できます）', addLabel: '手入力情報（年収・就業可能時期・紹介先企業名など）', addPlaceholder: '現年収：〇〇万円\n希望年収：〇〇万円\n就業可能時期：〇〇\n現職の雇用形態：正社員 / 離職中\n自家用車の有無：有 / 無\n既往歴の有無：なし\n犯罪歴の有無：なし\n希望勤務地：〇〇\n出張に関して：可\n転居に関して：不可\n\n紹介先企業名：\n①\n②\n③\n\n希望選考方法：対面 / オンライン\n\n面接候補日：自己記入', addHeight: '180px', btnLabel: '推薦文を生成', btnColor: 'var(--accent)' },
+  };
+
+  const cfg = CONFIG[subTab] || {};
 
   const handleFileChange = async (e) => {
     const files = Array.from(e.target.files);
@@ -3528,144 +3545,291 @@ function SuisenPrepPage() {
     setPdfFiles([]); setAdditionalInfo('');
   };
 
+  const handleCheck = async () => {
+    if (!checkResume.trim() && !checkShokumu.trim() && !checkSuisen.trim()) {
+      setCheckError('少なくとも1つの書類を貼り付けてください。');
+      return;
+    }
+    setCheckLoading(true); setCheckError(''); setCheckResult(''); setCheckCopied(false);
+    try {
+      const res = await fetch(`${RAILWAY_API}/api/suisen-prep`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'check',
+          resumeText: checkResume,
+          shokumuText: checkShokumu,
+          suisenText: checkSuisen,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `サーバーエラー (${res.status})`);
+      setCheckResult(data.result || '');
+    } catch (err) {
+      setCheckError(err.message);
+    } finally {
+      setCheckLoading(false);
+    }
+  };
+
+  // ガイドパネルのコピーボタン用ステート
+  const [guideCopied, setGuideCopied] = React.useState(false);
+  const handleGuideCopy = (text) => {
+    navigator.clipboard.writeText(text).then(() => { setGuideCopied(true); setTimeout(() => setGuideCopied(false), 2000); });
+  };
+
   return (
-    <div style={{ padding: '24px', maxWidth: '900px', margin: '0 auto' }}>
-      <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px' }}>推薦準備</h2>
+    <div style={{ padding: '24px', maxWidth: '960px', margin: '0 auto' }}>
+      <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px' }}>推薦前準備</h2>
       <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
-        PDFを添付してClaude AIで推薦文作成・書類添削を行います。
+        各書類のガイドを確認しながら、Claude AIで推薦文作成・書類添削・チェックを行います。
       </p>
 
       {/* サブタブ */}
-      <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', borderBottom: '2px solid var(--border)' }}>
+      <div style={{ display: 'flex', gap: '0', marginBottom: '24px', borderBottom: '2px solid var(--border)' }}>
         {SUB_TABS.map(t => (
           <div key={t.id} onClick={() => handleTabChange(t.id)}
             style={{
-              padding: '8px 18px', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+              padding: '10px 22px', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
               borderBottom: subTab === t.id ? '2px solid var(--accent)' : '2px solid transparent',
               marginBottom: '-2px',
               color: subTab === t.id ? 'var(--accent)' : 'var(--text-muted)',
               transition: 'all 0.15s',
+              whiteSpace: 'nowrap',
             }}>
             {t.label}
           </div>
         ))}
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* ===== チェックタブ ===== */}
+      {subTab === 'check' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ padding: '12px 16px', background: 'var(--info-bg)', border: '1px solid var(--info)', borderRadius: 'var(--radius)', fontSize: '13px', color: 'var(--info)' }}>
+            💡 履歴書・職務経歴書・推薦文のテキストを貼り付けると、Claude AIが内容をチェックします。1つだけでも実行できます。
+          </div>
 
-        {/* PDFアップロードエリア */}
-        <div>
-          <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-            {cfg.label} <span style={{ color: 'var(--danger)' }}>*</span>
-          </label>
-          <label style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            gap: '8px', padding: '24px', cursor: 'pointer',
-            border: '2px dashed var(--border)', borderRadius: 'var(--radius)',
-            background: 'var(--bg-base)', transition: 'border-color 0.15s',
-          }}
-            onDragOver={e => e.preventDefault()}
-            onDrop={async e => {
-              e.preventDefault();
-              const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
-              if (!files.length) { setError('PDFファイルのみ対応しています'); return; }
-              const loaded = await Promise.all(files.map(async f => ({ name: f.name, base64: await readFileAsBase64(f) })));
-              setPdfFiles(cfg.multiple ? prev => [...prev, ...loaded] : loaded);
-            }}
-          >
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="var(--text-muted)" strokeWidth="1.5">
-              <rect x="4" y="2" width="18" height="24" rx="2"/>
-              <path d="M18 2 L26 10 L22 10 L18 6 Z" fill="var(--bg-base)" stroke="var(--text-muted)"/>
-              <line x1="8" y1="14" x2="18" y2="14"/>
-              <line x1="8" y1="18" x2="16" y2="18"/>
-            </svg>
-            <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-              クリックしてPDFを選択、またはドラッグ＆ドロップ
-            </span>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', opacity: 0.7 }}>{cfg.hint}</span>
-            <input type="file" accept=".pdf,application/pdf" multiple={cfg.multiple} style={{ display: 'none' }} onChange={handleFileChange} />
-          </label>
+          {[
+            { key: 'resume', label: '📄 履歴書', value: checkResume, setter: setCheckResume, placeholder: '履歴書の内容をここに貼り付けてください...' },
+            { key: 'shokumu', label: '📋 職務経歴書', value: checkShokumu, setter: setCheckShokumu, placeholder: '職務経歴書の内容をここに貼り付けてください...' },
+            { key: 'suisen', label: '✉️ 推薦文', value: checkSuisen, setter: setCheckSuisen, placeholder: '推薦文の内容をここに貼り付けてください...' },
+          ].map(item => (
+            <div key={item.key}>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                {item.label}
+              </label>
+              <textarea
+                value={item.value}
+                onChange={e => item.setter(e.target.value)}
+                placeholder={item.placeholder}
+                style={{
+                  width: '100%', minHeight: '120px', padding: '12px', fontSize: '13px',
+                  border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+                  background: 'var(--bg-card)', color: 'var(--text-primary)',
+                  resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.6', boxSizing: 'border-box',
+                }}
+              />
+            </div>
+          ))}
 
-          {/* 選択済みファイル一覧 */}
-          {pdfFiles.length > 0 && (
-            <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {pdfFiles.map(f => (
-                <div key={f.name} style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '8px 12px', background: 'var(--success-bg)',
-                  border: '1px solid var(--success)', borderRadius: 'var(--radius-sm)',
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <button onClick={handleCheck} disabled={checkLoading} style={{
+              padding: '10px 28px', fontSize: '14px', fontWeight: 700,
+              background: checkLoading ? 'var(--border)' : '#0891b2',
+              color: '#fff', border: 'none', borderRadius: 'var(--radius)',
+              cursor: checkLoading ? 'not-allowed' : 'pointer',
+            }}>
+              {checkLoading ? '⏳ チェック中...' : '✅ AIチェック実行'}
+            </button>
+            {checkLoading && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Claude AIが確認中です（30〜60秒かかる場合があります）</span>}
+          </div>
+
+          {checkError && (
+            <div style={{ padding: '12px', background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: 'var(--radius)', fontSize: '13px', color: 'var(--danger)' }}>
+              ⚠️ {checkError}
+            </div>
+          )}
+
+          {checkResult && (
+            <div style={{ marginTop: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>✅ チェック結果</label>
+                <button onClick={() => { navigator.clipboard.writeText(checkResult).then(() => { setCheckCopied(true); setTimeout(() => setCheckCopied(false), 2000); }); }} style={{
+                  padding: '5px 14px', fontSize: '12px', fontWeight: 600,
+                  background: checkCopied ? 'var(--success)' : 'var(--bg-base)',
+                  color: checkCopied ? '#fff' : 'var(--text-secondary)',
+                  border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                 }}>
-                  <span style={{ fontSize: '13px', color: 'var(--success)', fontWeight: 600 }}>✅ {f.name}</span>
-                  <span onClick={() => removeFile(f.name)} style={{ cursor: 'pointer', fontSize: '12px', color: 'var(--text-muted)', padding: '0 4px' }}>✕</span>
-                </div>
-              ))}
+                  {checkCopied ? '✅ コピー済み' : '📋 コピー'}
+                </button>
+              </div>
+              <pre style={{
+                whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                padding: '16px', background: 'var(--bg-card)',
+                border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+                fontSize: '13px', lineHeight: '1.7', color: 'var(--text-primary)',
+                maxHeight: '600px', overflowY: 'auto',
+              }}>
+                {checkResult}
+              </pre>
             </div>
           )}
         </div>
+      )}
 
-        {/* 追加情報テキストエリア */}
-        <div>
-          <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-            {cfg.addLabel}
-          </label>
-          <textarea
-            value={additionalInfo}
-            onChange={e => setAdditionalInfo(e.target.value)}
-            placeholder={cfg.addPlaceholder}
-            style={{
-              width: '100%', minHeight: cfg.addHeight, padding: '12px', fontSize: '13px',
-              border: '1px solid var(--border)', borderRadius: 'var(--radius)',
-              background: 'var(--bg-card)', color: 'var(--text-primary)',
-              resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.6', boxSizing: 'border-box',
-            }}
-          />
-        </div>
+      {/* ===== 履歴書・職務経歴書・推薦文タブ（共通レイアウト） ===== */}
+      {subTab !== 'check' && (
+        <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
 
-        {/* 実行ボタン */}
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <button onClick={handleRun} disabled={loading} style={{
-            padding: '10px 28px', fontSize: '14px', fontWeight: 700,
-            background: loading ? 'var(--border)' : cfg.btnColor,
-            color: '#fff', border: 'none', borderRadius: 'var(--radius)',
-            cursor: loading ? 'not-allowed' : 'pointer',
-          }}>
-            {loading ? '⏳ 処理中...' : cfg.btnLabel}
-          </button>
-          {loading && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Claude AIが処理中です（20〜40秒かかる場合があります）</span>}
-        </div>
-
-        {error && (
-          <div style={{ padding: '12px', background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: 'var(--radius)', fontSize: '13px', color: 'var(--danger)' }}>
-            ⚠️ {error}
-          </div>
-        )}
-
-        {/* 結果表示 */}
-        {result && (
-          <div style={{ marginTop: '8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>✅ 生成結果</label>
-              <button onClick={handleCopy} style={{
-                padding: '5px 14px', fontSize: '12px', fontWeight: 600,
-                background: copied ? 'var(--success)' : 'var(--bg-base)',
-                color: copied ? '#fff' : 'var(--text-secondary)',
-                border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-              }}>
-                {copied ? '✅ コピー済み' : '📋 コピー'}
-              </button>
-            </div>
-            <pre style={{
-              whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-              padding: '16px', background: 'var(--bg-card)',
-              border: '1px solid var(--border)', borderRadius: 'var(--radius)',
-              fontSize: '13px', lineHeight: '1.7', color: 'var(--text-primary)',
-              maxHeight: '600px', overflowY: 'auto',
+          {/* 左カラム：ガイドパネル */}
+          <div style={{ flex: '0 0 320px', minWidth: '280px' }}>
+            <div style={{
+              background: 'var(--accent-subtle)', border: '1px solid var(--accent-light)',
+              borderRadius: 'var(--radius-lg)', overflow: 'hidden',
             }}>
-              {result}
-            </pre>
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '12px 16px', background: 'var(--accent)', color: '#fff',
+              }}>
+                <span style={{ fontSize: '13px', fontWeight: 700 }}>📋 ガイド・フォーマット</span>
+                <button onClick={() => handleGuideCopy(GUIDE[subTab])} style={{
+                  padding: '3px 10px', fontSize: '11px', fontWeight: 600,
+                  background: guideCopied ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)',
+                  color: '#fff', border: '1px solid rgba(255,255,255,0.4)',
+                  borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                }}>
+                  {guideCopied ? '✅ コピー済み' : '📋 コピー'}
+                </button>
+              </div>
+              <pre style={{
+                margin: 0, padding: '16px',
+                fontSize: '12px', lineHeight: '1.8', color: 'var(--text-primary)',
+                whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                maxHeight: '520px', overflowY: 'auto',
+                fontFamily: 'inherit',
+              }}>
+                {GUIDE[subTab]}
+              </pre>
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* 右カラム：AI添削ツール */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+            {/* PDFアップロードエリア */}
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                {cfg.label} <span style={{ color: 'var(--danger)' }}>*</span>
+              </label>
+              <label style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                gap: '8px', padding: '24px', cursor: 'pointer',
+                border: '2px dashed var(--border)', borderRadius: 'var(--radius)',
+                background: 'var(--bg-base)', transition: 'border-color 0.15s',
+              }}
+                onDragOver={e => e.preventDefault()}
+                onDrop={async e => {
+                  e.preventDefault();
+                  const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
+                  if (!files.length) { setError('PDFファイルのみ対応しています'); return; }
+                  const loaded = await Promise.all(files.map(async f => ({ name: f.name, base64: await readFileAsBase64(f) })));
+                  setPdfFiles(cfg.multiple ? prev => [...prev, ...loaded] : loaded);
+                }}
+              >
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="var(--text-muted)" strokeWidth="1.5">
+                  <rect x="4" y="2" width="18" height="24" rx="2"/>
+                  <path d="M18 2 L26 10 L22 10 L18 6 Z" fill="var(--bg-base)" stroke="var(--text-muted)"/>
+                  <line x1="8" y1="14" x2="18" y2="14"/>
+                  <line x1="8" y1="18" x2="16" y2="18"/>
+                </svg>
+                <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                  クリックしてPDFを選択、またはドラッグ＆ドロップ
+                </span>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', opacity: 0.7 }}>{cfg.hint}</span>
+                <input type="file" accept=".pdf,application/pdf" multiple={cfg.multiple} style={{ display: 'none' }} onChange={handleFileChange} />
+              </label>
+
+              {pdfFiles.length > 0 && (
+                <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {pdfFiles.map(f => (
+                    <div key={f.name} style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '8px 12px', background: 'var(--success-bg)',
+                      border: '1px solid var(--success)', borderRadius: 'var(--radius-sm)',
+                    }}>
+                      <span style={{ fontSize: '13px', color: 'var(--success)', fontWeight: 600 }}>✅ {f.name}</span>
+                      <span onClick={() => removeFile(f.name)} style={{ cursor: 'pointer', fontSize: '12px', color: 'var(--text-muted)', padding: '0 4px' }}>✕</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 追加情報テキストエリア */}
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                {cfg.addLabel}
+              </label>
+              <textarea
+                value={additionalInfo}
+                onChange={e => setAdditionalInfo(e.target.value)}
+                placeholder={cfg.addPlaceholder}
+                style={{
+                  width: '100%', minHeight: cfg.addHeight, padding: '12px', fontSize: '13px',
+                  border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+                  background: 'var(--bg-card)', color: 'var(--text-primary)',
+                  resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.6', boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            {/* 実行ボタン */}
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <button onClick={handleRun} disabled={loading} style={{
+                padding: '10px 28px', fontSize: '14px', fontWeight: 700,
+                background: loading ? 'var(--border)' : cfg.btnColor,
+                color: '#fff', border: 'none', borderRadius: 'var(--radius)',
+                cursor: loading ? 'not-allowed' : 'pointer',
+              }}>
+                {loading ? '⏳ 処理中...' : cfg.btnLabel}
+              </button>
+              {loading && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Claude AIが処理中です（20〜40秒かかる場合があります）</span>}
+            </div>
+
+            {error && (
+              <div style={{ padding: '12px', background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: 'var(--radius)', fontSize: '13px', color: 'var(--danger)' }}>
+                ⚠️ {error}
+              </div>
+            )}
+
+            {/* 結果表示 */}
+            {result && (
+              <div style={{ marginTop: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>✅ 生成結果</label>
+                  <button onClick={handleCopy} style={{
+                    padding: '5px 14px', fontSize: '12px', fontWeight: 600,
+                    background: copied ? 'var(--success)' : 'var(--bg-base)',
+                    color: copied ? '#fff' : 'var(--text-secondary)',
+                    border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                  }}>
+                    {copied ? '✅ コピー済み' : '📋 コピー'}
+                  </button>
+                </div>
+                <pre style={{
+                  whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                  padding: '16px', background: 'var(--bg-card)',
+                  border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+                  fontSize: '13px', lineHeight: '1.7', color: 'var(--text-primary)',
+                  maxHeight: '600px', overflowY: 'auto',
+                }}>
+                  {result}
+                </pre>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
