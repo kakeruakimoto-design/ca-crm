@@ -3473,9 +3473,11 @@ function SuisenPrepPage() {
   const [copied, setCopied] = React.useState(false);
 
   // チェックタブ用ステート
-  const [checkResumePdf, setCheckResumePdf] = React.useState(null);   // {name, base64}
-  const [checkShokumuPdf, setCheckShokumuPdf] = React.useState(null); // {name, base64}
-  const [checkSuisen, setCheckSuisen] = React.useState('');
+  const [checkResumeUrl, setCheckResumeUrl] = React.useState('');          // 履歴書URL
+  const [checkShokumuPdf, setCheckShokumuPdf] = React.useState(null);      // 職務経歴書チェック用 履歴書PDF {name,base64}
+  const [checkShokumuGdrive, setCheckShokumuGdrive] = React.useState('');  // Google Drive URL
+  const [checkSuisenResumePdf, setCheckSuisenResumePdf] = React.useState(null);   // 推薦文チェック用 履歴書PDF
+  const [checkSuisenShokumuPdf, setCheckSuisenShokumuPdf] = React.useState(null); // 推薦文チェック用 職務経歴書PDF
   const [checkResult, setCheckResult] = React.useState('');
   const [checkLoading, setCheckLoading] = React.useState(false);
   const [checkError, setCheckError] = React.useState('');
@@ -3557,8 +3559,8 @@ function SuisenPrepPage() {
   };
 
   const handleCheck = async () => {
-    if (!checkResumePdf && !checkShokumuPdf && !checkSuisen.trim()) {
-      setCheckError('少なくとも1つの書類を添付または貼り付けてください。');
+    if (!checkResumeUrl.trim() && !checkShokumuPdf && !checkSuisenResumePdf && !checkSuisenShokumuPdf) {
+      setCheckError('少なくとも1つの書類情報を入力してください。');
       return;
     }
     setCheckLoading(true); setCheckError(''); setCheckResult(''); setCheckCopied(false);
@@ -3568,9 +3570,11 @@ function SuisenPrepPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'check',
-          resumePdf: checkResumePdf ? checkResumePdf.base64 : null,
+          resumeUrl: checkResumeUrl,
           shokumuPdf: checkShokumuPdf ? checkShokumuPdf.base64 : null,
-          suisenText: checkSuisen,
+          shokumuGdriveUrl: checkShokumuGdrive,
+          suisenResumePdf: checkSuisenResumePdf ? checkSuisenResumePdf.base64 : null,
+          suisenShokumuPdf: checkSuisenShokumuPdf ? checkSuisenShokumuPdf.base64 : null,
         }),
       });
       const data = await res.json();
@@ -3615,59 +3619,91 @@ function SuisenPrepPage() {
 
       {/* ===== チェックタブ ===== */}
       {subTab === 'check' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={{ padding: '12px 16px', background: 'var(--info-bg)', border: '1px solid var(--info)', borderRadius: 'var(--radius)', fontSize: '13px', color: 'var(--info)' }}>
-            💡 履歴書・職務経歴書はPDFを添付、推薦文はテキストを貼り付けてAIチェックを実行します。1つだけでも実行できます。
+            💡 各セクションに書類を入力してAIチェックを実行します。入力済みのセクションのみチェックされます。
           </div>
 
-          {/* 履歴書 PDF */}
-          <div>
-            <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>📄 履歴書（PDF）</label>
-            {checkResumePdf ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--success-bg)', border: '1px solid var(--success)', borderRadius: 'var(--radius-sm)' }}>
-                <span style={{ fontSize: '13px', color: 'var(--success)', fontWeight: 600 }}>✅ {checkResumePdf.name}</span>
-                <span onClick={() => setCheckResumePdf(null)} style={{ cursor: 'pointer', fontSize: '12px', color: 'var(--text-muted)', padding: '0 4px' }}>✕</span>
-              </div>
-            ) : (
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 18px', cursor: 'pointer', border: '2px dashed var(--border)', borderRadius: 'var(--radius)', background: 'var(--bg-base)' }}>
-                <svg width="22" height="22" viewBox="0 0 32 32" fill="none" stroke="var(--text-muted)" strokeWidth="1.5"><rect x="4" y="2" width="18" height="24" rx="2"/><path d="M18 2 L26 10 L22 10 L18 6 Z" fill="var(--bg-base)" stroke="var(--text-muted)"/><line x1="8" y1="14" x2="18" y2="14"/><line x1="8" y1="18" x2="16" y2="18"/></svg>
-                <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>クリックして履歴書PDFを選択</span>
-                <input type="file" accept=".pdf,application/pdf" style={{ display: 'none' }} onChange={e => handleCheckPdfChange(e, setCheckResumePdf)} />
-              </label>
-            )}
+          {/* ① 履歴書 - URLのみ */}
+          <div style={{ padding: '16px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--bg-card)' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid var(--border-light)' }}>
+              📄 履歴書
+            </div>
+            <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+              求職者から受領した履歴書のURL
+            </label>
+            <input
+              type="url"
+              value={checkResumeUrl}
+              onChange={e => setCheckResumeUrl(e.target.value)}
+              placeholder="https://..."
+              style={{
+                width: '100%', padding: '10px 12px', fontSize: '13px',
+                border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+                background: 'var(--bg-base)', color: 'var(--text-primary)',
+                boxSizing: 'border-box',
+              }}
+            />
           </div>
 
-          {/* 職務経歴書 PDF */}
-          <div>
-            <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>📋 職務経歴書（PDF）</label>
+          {/* ② 職務経歴書 - PDF + Google Drive URL */}
+          <div style={{ padding: '16px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--bg-card)' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid var(--border-light)' }}>
+              📋 職務経歴書
+            </div>
+            <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>履歴書PDF</label>
             {checkShokumuPdf ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--success-bg)', border: '1px solid var(--success)', borderRadius: 'var(--radius-sm)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--success-bg)', border: '1px solid var(--success)', borderRadius: 'var(--radius-sm)', marginBottom: '12px' }}>
                 <span style={{ fontSize: '13px', color: 'var(--success)', fontWeight: 600 }}>✅ {checkShokumuPdf.name}</span>
                 <span onClick={() => setCheckShokumuPdf(null)} style={{ cursor: 'pointer', fontSize: '12px', color: 'var(--text-muted)', padding: '0 4px' }}>✕</span>
               </div>
             ) : (
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 18px', cursor: 'pointer', border: '2px dashed var(--border)', borderRadius: 'var(--radius)', background: 'var(--bg-base)' }}>
-                <svg width="22" height="22" viewBox="0 0 32 32" fill="none" stroke="var(--text-muted)" strokeWidth="1.5"><rect x="4" y="2" width="18" height="24" rx="2"/><path d="M18 2 L26 10 L22 10 L18 6 Z" fill="var(--bg-base)" stroke="var(--text-muted)"/><line x1="8" y1="14" x2="18" y2="14"/><line x1="8" y1="18" x2="16" y2="18"/></svg>
-                <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>クリックして職務経歴書PDFを選択</span>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', cursor: 'pointer', border: '2px dashed var(--border)', borderRadius: 'var(--radius)', background: 'var(--bg-base)', marginBottom: '12px' }}>
+                <svg width="20" height="20" viewBox="0 0 32 32" fill="none" stroke="var(--text-muted)" strokeWidth="1.5"><rect x="4" y="2" width="18" height="24" rx="2"/><path d="M18 2 L26 10 L22 10 L18 6 Z" fill="var(--bg-base)" stroke="var(--text-muted)"/><line x1="8" y1="14" x2="18" y2="14"/><line x1="8" y1="18" x2="16" y2="18"/></svg>
+                <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>クリックして履歴書PDFを選択</span>
                 <input type="file" accept=".pdf,application/pdf" style={{ display: 'none' }} onChange={e => handleCheckPdfChange(e, setCheckShokumuPdf)} />
               </label>
             )}
-          </div>
-
-          {/* 推薦文 テキスト */}
-          <div>
-            <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>✉️ 推薦文（テキスト貼り付け）</label>
-            <textarea
-              value={checkSuisen}
-              onChange={e => setCheckSuisen(e.target.value)}
-              placeholder="推薦文の内容をここに貼り付けてください..."
+            <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Google DriveのURL</label>
+            <input
+              type="url"
+              value={checkShokumuGdrive}
+              onChange={e => setCheckShokumuGdrive(e.target.value)}
+              placeholder="https://drive.google.com/..."
               style={{
-                width: '100%', minHeight: '140px', padding: '12px', fontSize: '13px',
+                width: '100%', padding: '10px 12px', fontSize: '13px',
                 border: '1px solid var(--border)', borderRadius: 'var(--radius)',
-                background: 'var(--bg-card)', color: 'var(--text-primary)',
-                resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.6', boxSizing: 'border-box',
+                background: 'var(--bg-base)', color: 'var(--text-primary)',
+                boxSizing: 'border-box',
               }}
             />
+          </div>
+
+          {/* ③ 推薦文 - 履歴書PDF + 職務経歴書PDF */}
+          <div style={{ padding: '16px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--bg-card)' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid var(--border-light)' }}>
+              ✉️ 推薦文
+            </div>
+            {[
+              { label: '履歴書PDF', state: checkSuisenResumePdf, setter: setCheckSuisenResumePdf },
+              { label: '職務経歴書PDF', state: checkSuisenShokumuPdf, setter: setCheckSuisenShokumuPdf },
+            ].map(item => (
+              <div key={item.label} style={{ marginBottom: '12px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>{item.label}</label>
+                {item.state ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--success-bg)', border: '1px solid var(--success)', borderRadius: 'var(--radius-sm)' }}>
+                    <span style={{ fontSize: '13px', color: 'var(--success)', fontWeight: 600 }}>✅ {item.state.name}</span>
+                    <span onClick={() => item.setter(null)} style={{ cursor: 'pointer', fontSize: '12px', color: 'var(--text-muted)', padding: '0 4px' }}>✕</span>
+                  </div>
+                ) : (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', cursor: 'pointer', border: '2px dashed var(--border)', borderRadius: 'var(--radius)', background: 'var(--bg-base)' }}>
+                    <svg width="20" height="20" viewBox="0 0 32 32" fill="none" stroke="var(--text-muted)" strokeWidth="1.5"><rect x="4" y="2" width="18" height="24" rx="2"/><path d="M18 2 L26 10 L22 10 L18 6 Z" fill="var(--bg-base)" stroke="var(--text-muted)"/><line x1="8" y1="14" x2="18" y2="14"/><line x1="8" y1="18" x2="16" y2="18"/></svg>
+                    <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>クリックして{item.label}を選択</span>
+                    <input type="file" accept=".pdf,application/pdf" style={{ display: 'none' }} onChange={e => handleCheckPdfChange(e, item.setter)} />
+                  </label>
+                )}
+              </div>
+            ))}
           </div>
 
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
