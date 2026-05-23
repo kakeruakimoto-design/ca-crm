@@ -1638,7 +1638,7 @@ function _loadSummaryData() {
   const PROP_ST = ['ブリッジ成功','企業提案','推薦','面接対策１','面接対策２','企業面接','内定'];
   const proposalCandidates = cands.filter(c => {
     const cs = c.caStatus || c.status || '';
-    return PROP_ST.includes(cs);
+    return PROP_ST.includes(cs) || !!c.recommendationDate;
   }).map(c => {
     // 最新の提案企業をinterview plansから取得
     const cpList = plans[c.id] || [];
