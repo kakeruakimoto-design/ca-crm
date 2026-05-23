@@ -3466,6 +3466,7 @@ function readFileAsBase64(file) {
 function SuisenPrepPage() {
   const [subTab, setSubTab] = React.useState('resume');
   const [pdfFiles, setPdfFiles] = React.useState([]);
+  const [resumeUrl, setResumeUrl] = React.useState('');  // 履歴書タブ用URL
   const [additionalInfo, setAdditionalInfo] = React.useState('');
   const [result, setResult] = React.useState('');
   const [loading, setLoading] = React.useState(false);
@@ -3518,13 +3519,20 @@ function SuisenPrepPage() {
   const removeFile = (name) => setPdfFiles(prev => prev.filter(f => f.name !== name));
 
   const handleRun = async () => {
-    if (pdfFiles.length === 0) { setError('PDFを選択してください。'); return; }
+    if (subTab === 'resume') {
+      if (!resumeUrl.trim()) { setError('履歴書のURLを入力してください。'); return; }
+    } else {
+      if (pdfFiles.length === 0) { setError('PDFを選択してください。'); return; }
+    }
     setLoading(true); setError(''); setResult(''); setCopied(false);
     try {
+      const body = subTab === 'resume'
+        ? { type: 'resume', resumeUrl: resumeUrl.trim(), additionalInfo }
+        : { type: subTab, pdfFiles, additionalInfo };
       const res = await fetch(`${RAILWAY_API}/api/suisen-prep`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: subTab, pdfFiles, additionalInfo }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `サーバーエラー (${res.status})`);
@@ -3542,7 +3550,7 @@ function SuisenPrepPage() {
 
   const handleTabChange = (id) => {
     setSubTab(id); setResult(''); setError(''); setCopied(false);
-    setPdfFiles([]); setAdditionalInfo('');
+    setPdfFiles([]); setAdditionalInfo(''); setResumeUrl('');
   };
 
   const handleCheckPdfChange = async (e, setter) => {
@@ -3742,52 +3750,79 @@ function SuisenPrepPage() {
           {/* 右カラム：AI添削ツール */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-            {/* PDFアップロードエリア */}
+            {/* URLインプット（履歴書タブ）または PDFアップロード（他タブ） */}
             <div>
-              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                {cfg.label} <span style={{ color: 'var(--danger)' }}>*</span>
-              </label>
-              <label style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                gap: '8px', padding: '24px', cursor: 'pointer',
-                border: '2px dashed var(--border)', borderRadius: 'var(--radius)',
-                background: 'var(--bg-base)', transition: 'border-color 0.15s',
-              }}
-                onDragOver={e => e.preventDefault()}
-                onDrop={async e => {
-                  e.preventDefault();
-                  const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
-                  if (!files.length) { setError('PDFファイルのみ対応しています'); return; }
-                  const loaded = await Promise.all(files.map(async f => ({ name: f.name, base64: await readFileAsBase64(f) })));
-                  setPdfFiles(cfg.multiple ? prev => [...prev, ...loaded] : loaded);
-                }}
-              >
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="var(--text-muted)" strokeWidth="1.5">
-                  <rect x="4" y="2" width="18" height="24" rx="2"/>
-                  <path d="M18 2 L26 10 L22 10 L18 6 Z" fill="var(--bg-base)" stroke="var(--text-muted)"/>
-                  <line x1="8" y1="14" x2="18" y2="14"/>
-                  <line x1="8" y1="18" x2="16" y2="18"/>
-                </svg>
-                <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                  クリックしてPDFを選択、またはドラッグ＆ドロップ
-                </span>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', opacity: 0.7 }}>{cfg.hint}</span>
-                <input type="file" accept=".pdf,application/pdf" multiple={cfg.multiple} style={{ display: 'none' }} onChange={handleFileChange} />
-              </label>
-
-              {pdfFiles.length > 0 && (
-                <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {pdfFiles.map(f => (
-                    <div key={f.name} style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '8px 12px', background: 'var(--success-bg)',
-                      border: '1px solid var(--success)', borderRadius: 'var(--radius-sm)',
-                    }}>
-                      <span style={{ fontSize: '13px', color: 'var(--success)', fontWeight: 600 }}>✅ {f.name}</span>
-                      <span onClick={() => removeFile(f.name)} style={{ cursor: 'pointer', fontSize: '12px', color: 'var(--text-muted)', padding: '0 4px' }}>✕</span>
+              {subTab === 'resume' ? (
+                <>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                    履歴書URL <span style={{ color: 'var(--danger)' }}>*</span>
+                  </label>
+                  <input
+                    type="url"
+                    value={resumeUrl}
+                    onChange={e => setResumeUrl(e.target.value)}
+                    placeholder="求職者から受領した履歴書のURLを入力してください"
+                    style={{
+                      width: '100%', padding: '10px 12px', fontSize: '13px',
+                      border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+                      background: 'var(--bg-base)', color: 'var(--text-primary)',
+                      outline: 'none', boxSizing: 'border-box',
+                    }}
+                  />
+                  {resumeUrl.trim() && (
+                    <div style={{ marginTop: '8px', padding: '8px 12px', background: 'var(--success-bg)', border: '1px solid var(--success)', borderRadius: 'var(--radius-sm)' }}>
+                      <span style={{ fontSize: '13px', color: 'var(--success)', fontWeight: 600 }}>✅ URL入力済み</span>
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                    {cfg.label} <span style={{ color: 'var(--danger)' }}>*</span>
+                  </label>
+                  <label style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    gap: '8px', padding: '24px', cursor: 'pointer',
+                    border: '2px dashed var(--border)', borderRadius: 'var(--radius)',
+                    background: 'var(--bg-base)', transition: 'border-color 0.15s',
+                  }}
+                    onDragOver={e => e.preventDefault()}
+                    onDrop={async e => {
+                      e.preventDefault();
+                      const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
+                      if (!files.length) { setError('PDFファイルのみ対応しています'); return; }
+                      const loaded = await Promise.all(files.map(async f => ({ name: f.name, base64: await readFileAsBase64(f) })));
+                      setPdfFiles(cfg.multiple ? prev => [...prev, ...loaded] : loaded);
+                    }}
+                  >
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="var(--text-muted)" strokeWidth="1.5">
+                      <rect x="4" y="2" width="18" height="24" rx="2"/>
+                      <path d="M18 2 L26 10 L22 10 L18 6 Z" fill="var(--bg-base)" stroke="var(--text-muted)"/>
+                      <line x1="8" y1="14" x2="18" y2="14"/>
+                      <line x1="8" y1="18" x2="16" y2="18"/>
+                    </svg>
+                    <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                      クリックしてPDFを選択、またはドラッグ＆ドロップ
+                    </span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', opacity: 0.7 }}>{cfg.hint}</span>
+                    <input type="file" accept=".pdf,application/pdf" multiple={cfg.multiple} style={{ display: 'none' }} onChange={handleFileChange} />
+                  </label>
+
+                  {pdfFiles.length > 0 && (
+                    <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {pdfFiles.map(f => (
+                        <div key={f.name} style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          padding: '8px 12px', background: 'var(--success-bg)',
+                          border: '1px solid var(--success)', borderRadius: 'var(--radius-sm)',
+                        }}>
+                          <span style={{ fontSize: '13px', color: 'var(--success)', fontWeight: 600 }}>✅ {f.name}</span>
+                          <span onClick={() => removeFile(f.name)} style={{ cursor: 'pointer', fontSize: '12px', color: 'var(--text-muted)', padding: '0 4px' }}>✕</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
