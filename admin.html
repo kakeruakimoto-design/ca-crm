@@ -238,7 +238,47 @@ select.filter-select{background:var(--bg-base);border:1px solid var(--border);bo
     }
   }catch(e){}
 })();
+// v6マイグレーション - 重複候補者（同一電話番号）を削除
+(function(){
+  try{
+    if(localStorage.getItem('crm-dedup-v1')==='done') return;
+    var dupPhones=["9036181338","9089538863","7085238401","8085766578","9037208638"];
+    var raw=localStorage.getItem('crm-candidates');
+    if(!raw) return;
+    var cands=JSON.parse(raw);
+    var seenPhones={};
+    var deduped=[];
+    cands.forEach(function(c){
+      var p=String(c.phone||'').replace(/\D/g,'').replace(/^0/,'');
+      if(dupPhones.indexOf(p)===-1){
+        deduped.push(c);
+      } else {
+        if(!seenPhones[p]){seenPhones[p]=true;deduped.push(c);}
+      }
+    });
+    localStorage.setItem('crm-candidates',JSON.stringify(deduped));
+    localStorage.setItem('crm-dedup-v1','done');
+  }catch(e){}
+})();
 
+// v7マイグレーション - 推薦5月8名の推薦日を設定（進捗管理xlsx未記載分）
+(function(){
+  try{
+    if(localStorage.getItem('crm-suisen-manual-v1')==='done') return;
+    var names=["杉谷 駿", "富永 悠", "高橋 琴美", "工藤 隆弘", "久保 凛太郎", "庄司 英弐士", "網城 眞心", "茅原 楓"];
+    var raw=localStorage.getItem('crm-candidates');
+    if(!raw) return;
+    var cands=JSON.parse(raw);
+    cands=cands.map(function(c){
+      if(names.indexOf(c.name)!==-1 && !c.recommendationDate){
+        return Object.assign({},c,{recommendationDate:'2026-05-15'});
+      }
+      return c;
+    });
+    localStorage.setItem('crm-candidates',JSON.stringify(cands));
+    localStorage.setItem('crm-suisen-manual-v1','done');
+  }catch(e){}
+})();
 // 承諾シードデータ（実データ）
 (function(){
   try {
