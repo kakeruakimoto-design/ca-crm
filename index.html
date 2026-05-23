@@ -1635,7 +1635,7 @@ function _loadSummaryData() {
 
   // 企業提案中: ブリッジ成功以降・承諾/見送り/飛び(辞退)でない候補者
   // 初回面接が終わった人は必ずブリッジ成功 or 終了になる（初回面接ステータスのまま止まることはない）
-  const PROP_ST = ['ブリッジ成功','企業提案','推薦','面接対策１','面接対策２','企業面接','内定'];
+  const PROP_ST = ['企業提案','推薦','面接対策１','面接対策２','企業面接','内定'];
   const proposalCandidates = cands.filter(c => {
     const cs = c.caStatus || c.status || '';
     return PROP_ST.includes(cs) || !!c.recommendationDate;
