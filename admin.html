@@ -7,6 +7,9 @@
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 
 /* ====== THEME VARIABLES ====== */
@@ -148,6 +151,82 @@ select.filter-select{background:var(--bg-base);border:1px solid var(--border);bo
 </style>
 </head>
 <body>
+<!-- Firebase初期化（admin.html用） -->
+<script>
+(function() {
+  const cfg = {
+    apiKey: "AIzaSyDdKe3KQpXvKwh4AY_dOpccoBDvYyq9JNo",
+    authDomain: "nextrend-crm.firebaseapp.com",
+    projectId: "nextrend-crm",
+    storageBucket: "nextrend-crm.firebasestorage.app",
+    messagingSenderId: "52694573891",
+    appId: "1:52694573891:web:5200bff00aa3694caf85f6"
+  };
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(cfg);
+    const db = firebase.firestore();
+    window.__crmDb = db;
+
+    const SYNC_KEYS = [
+      'crm-candidates',
+      'crm-accepted',
+      'crm-interview-plans',
+      'crm-candidate-meta',
+      'crm-post-accept-milestones',
+      'crm-goals',
+    ];
+
+    const _orig = localStorage.setItem.bind(localStorage);
+    window.__lsSetItem = _orig;
+
+    // localStorage書き込み → Firestoreにも自動反映
+    localStorage.setItem = function(key, value) {
+      _orig(key, value);
+      if (SYNC_KEYS.includes(key) && window.__crmDb) {
+        try {
+          window.__crmDb.collection('crm').doc(key).set({ v: JSON.parse(value) })
+            .catch(function(e) { console.warn('[Firestore] write error:', key, e); });
+        } catch(e) {}
+      }
+    };
+
+    // Firestore → localStorage同期（全CAデータを取得）
+    window.__syncFromFirestore = async function() {
+      if (!window.__crmDb) return [];
+      const synced = [];
+      await Promise.all(SYNC_KEYS.map(async function(key) {
+        try {
+          const snap = await window.__crmDb.collection('crm').doc(key).get();
+          if (snap.exists && snap.data() && snap.data().v !== undefined) {
+            _orig(key, JSON.stringify(snap.data().v));
+            synced.push(key);
+          }
+        } catch(e) { console.warn('[Firestore] read error:', key, e); }
+      }));
+      return synced;
+    };
+
+    // リアルタイム更新リスナー（他のCAが更新したら即反映）
+    window.__startFirestoreListener = function(onUpdate) {
+      if (!window.__crmDb) return;
+      SYNC_KEYS.forEach(function(key) {
+        window.__crmDb.collection('crm').doc(key).onSnapshot(function(snap) {
+          if (snap.exists && snap.data() && snap.data().v !== undefined) {
+            _orig(key, JSON.stringify(snap.data().v));
+            if (onUpdate) onUpdate(key);
+          }
+        }, function(e) { console.warn('[Firestore] listener error:', key, e); });
+      });
+    };
+
+    console.log('[Firestore] admin初期化完了 - nextrend-crm');
+  } catch(e) {
+    console.warn('[Firestore] admin初期化失敗:', e);
+    window.__syncFromFirestore = async function() { return []; };
+    window.__startFirestoreListener = function() {};
+  }
+})();
+</script>
 <div id="root"><div style="display:flex;align-items:center;justify-content:center;height:100vh;font-size:18px;color:#6B7280;">読み込み中...</div></div>
 <script>
 // 求職者シードデータ初期化 (v2)
@@ -238,7 +317,47 @@ select.filter-select{background:var(--bg-base);border:1px solid var(--border);bo
     }
   }catch(e){}
 })();
+// v6マイグレーション - 重複候補者（同一電話番号）を削除
+(function(){
+  try{
+    if(localStorage.getItem('crm-dedup-v1')==='done') return;
+    var dupPhones=["9036181338","9089538863","7085238401","8085766578","9037208638"];
+    var raw=localStorage.getItem('crm-candidates');
+    if(!raw) return;
+    var cands=JSON.parse(raw);
+    var seenPhones={};
+    var deduped=[];
+    cands.forEach(function(c){
+      var p=String(c.phone||'').replace(/\D/g,'').replace(/^0/,'');
+      if(dupPhones.indexOf(p)===-1){
+        deduped.push(c);
+      } else {
+        if(!seenPhones[p]){seenPhones[p]=true;deduped.push(c);}
+      }
+    });
+    localStorage.setItem('crm-candidates',JSON.stringify(deduped));
+    localStorage.setItem('crm-dedup-v1','done');
+  }catch(e){}
+})();
 
+// v7マイグレーション - 推薦5月8名の推薦日を設定（進捗管理xlsx未記載分）
+(function(){
+  try{
+    if(localStorage.getItem('crm-suisen-manual-v1')==='done') return;
+    var names=["杉谷 駿", "富永 悠", "高橋 琴美", "工藤 隆弘", "久保 凛太郎", "庄司 英弐士", "網城 眞心", "茅原 楓"];
+    var raw=localStorage.getItem('crm-candidates');
+    if(!raw) return;
+    var cands=JSON.parse(raw);
+    cands=cands.map(function(c){
+      if(names.indexOf(c.name)!==-1 && !c.recommendationDate){
+        return Object.assign({},c,{recommendationDate:'2026-05-15'});
+      }
+      return c;
+    });
+    localStorage.setItem('crm-candidates',JSON.stringify(cands));
+    localStorage.setItem('crm-suisen-manual-v1','done');
+  }catch(e){}
+})();
 // 承諾シードデータ（実データ）
 (function(){
   try {
@@ -327,16 +446,16 @@ const TEAM_KPI = {
   revenue: { target: 15000000, requiredByToday: 9000000, current: 7500000 },
 };
 const CA_MEMBERS = [
-  { name: '秋元', applications: 0, interviewSet: 0, bridge: 0, proposal: 0, companyInterview: 0, offer: 0, acceptance: 0, flyRate: 0, revenue: 0, target: 2200000 },
-  { name: '堀切', applications: 0, interviewSet: 0, bridge: 0, proposal: 0, companyInterview: 0, offer: 0, acceptance: 0, flyRate: 0, revenue: 0, target: 1500000 },
-  { name: '髙橋', applications: 0, interviewSet: 0, bridge: 0, proposal: 0, companyInterview: 0, offer: 0, acceptance: 0, flyRate: 0, revenue: 0, target: 3500000 },
-  { name: '朝田', applications: 0, interviewSet: 0, bridge: 0, proposal: 0, companyInterview: 0, offer: 0, acceptance: 0, flyRate: 0, revenue: 0, target: 1600000 },
-  { name: '後藤', applications: 0, interviewSet: 0, bridge: 0, proposal: 0, companyInterview: 0, offer: 0, acceptance: 0, flyRate: 0, revenue: 0, target: 1500000 },
-  { name: '荒井', applications: 0, interviewSet: 0, bridge: 0, proposal: 0, companyInterview: 0, offer: 0, acceptance: 0, flyRate: 0, revenue: 0, target:       0 },
-  { name: '平野', applications: 0, interviewSet: 0, bridge: 0, proposal: 0, companyInterview: 0, offer: 0, acceptance: 0, flyRate: 0, revenue: 0, target:  700000 },
-  { name: '土橋', applications: 0, interviewSet: 0, bridge: 0, proposal: 0, companyInterview: 0, offer: 0, acceptance: 0, flyRate: 0, revenue: 0, target: 1500000 },
-  { name: '山下', applications: 0, interviewSet: 0, bridge: 0, proposal: 0, companyInterview: 0, offer: 0, acceptance: 0, flyRate: 0, revenue: 0, target:  800000 },
-  { name: '鈴木', applications: 0, interviewSet: 0, bridge: 0, proposal: 0, companyInterview: 0, offer: 0, acceptance: 0, flyRate: 0, revenue: 0, target:  800000 },
+  { name: '秋元', applications: 0, interviewSet: 0, bridge: 0, proposal: 0, recommendation: 0, companyInterview: 0, offer: 0, acceptance: 0, flyRate: 0, revenue: 0, target: 2200000 },
+  { name: '堀切', applications: 0, interviewSet: 0, bridge: 0, proposal: 0, recommendation: 0, companyInterview: 0, offer: 0, acceptance: 0, flyRate: 0, revenue: 0, target: 1500000 },
+  { name: '髙橋', applications: 0, interviewSet: 0, bridge: 0, proposal: 0, recommendation: 0, companyInterview: 0, offer: 0, acceptance: 0, flyRate: 0, revenue: 0, target: 3500000 },
+  { name: '朝田', applications: 0, interviewSet: 0, bridge: 0, proposal: 0, recommendation: 0, companyInterview: 0, offer: 0, acceptance: 0, flyRate: 0, revenue: 0, target: 1600000 },
+  { name: '後藤', applications: 0, interviewSet: 0, bridge: 0, proposal: 0, recommendation: 0, companyInterview: 0, offer: 0, acceptance: 0, flyRate: 0, revenue: 0, target: 1500000 },
+  { name: '荒井', applications: 0, interviewSet: 0, bridge: 0, proposal: 0, recommendation: 0, companyInterview: 0, offer: 0, acceptance: 0, flyRate: 0, revenue: 0, target:       0 },
+  { name: '平野', applications: 0, interviewSet: 0, bridge: 0, proposal: 0, recommendation: 0, companyInterview: 0, offer: 0, acceptance: 0, flyRate: 0, revenue: 0, target:  700000 },
+  { name: '土橋', applications: 0, interviewSet: 0, bridge: 0, proposal: 0, recommendation: 0, companyInterview: 0, offer: 0, acceptance: 0, flyRate: 0, revenue: 0, target: 1500000 },
+  { name: '山下', applications: 0, interviewSet: 0, bridge: 0, proposal: 0, recommendation: 0, companyInterview: 0, offer: 0, acceptance: 0, flyRate: 0, revenue: 0, target:  800000 },
+  { name: '鈴木', applications: 0, interviewSet: 0, bridge: 0, proposal: 0, recommendation: 0, companyInterview: 0, offer: 0, acceptance: 0, flyRate: 0, revenue: 0, target:  800000 },
 ];
 const MEDIA_DATA = [
   { label:'Indeed',      acceptance:3, acceptRate:18, revenue:3200000, avgUnit:267000 },
@@ -842,7 +961,7 @@ const buildCAMembersFromStorage = () => {
     if (!cands || !cands.length) {
       return ALL_CAS_ADMIN.map(ca => ({
         name: ca, applications: 0, interviewSet: 0, bridge: 0, proposal: 0,
-        companyInterview: 0, offer: 0, acceptance: 0, flyRate: 0, revenue: 0, target: 0,
+        recommendation: 0, companyInterview: 0, offer: 0, acceptance: 0, flyRate: 0, revenue: 0, target: 0,
       }));
     }
     const accepted = JSON.parse(localStorage.getItem('crm-accepted')||'[]');
@@ -854,13 +973,14 @@ const buildCAMembersFromStorage = () => {
       const interviewSet = mine.filter(c => !!c.firstInterviewDate).length;
       const bridge = mine.filter(c => caAtOrPast(c,['ブリッジ成功','企業提案','推薦','企業面接','企業面接1','企業面接2','選考中','内定','内定承諾'])).length;
       const proposal = mine.filter(c => caAtOrPast(c,['企業提案','推薦','企業面接','企業面接1','企業面接2','選考中','内定','内定承諾'])).length;
+      const recommendation = mine.filter(c => !!c.recommendationDate).length;
       const companyInterview = mine.filter(c => caAtOrPast(c,['企業面接','企業面接1','企業面接2','選考中','内定','内定承諾'])).length;
       const offer = mine.filter(c => caAtOrPast(c,['内定','内定承諾'])).length;
       const acceptance = myAcc.length;
       const revenue = myAcc.reduce((s,a) => s+(Number(a.contractAmount)||0), 0);
       // 保存済み revenueTarget を優先、なければ承諾目標数 × 500,000
       const target = goal?.targets?.revenueTarget || (goal?.targets?.acceptance ? goal.targets.acceptance * 500000 : 0);
-      return { name:ca, applications:mine.length, interviewSet, bridge, proposal, companyInterview, offer, acceptance, flyRate:0, revenue, target };
+      return { name:ca, applications:mine.length, interviewSet, bridge, proposal, recommendation, companyInterview, offer, acceptance, flyRate:0, revenue, target };
     });
   } catch { return null; }
 };
@@ -1393,6 +1513,7 @@ function CAComparePage() {
               <th style={{textAlign:'right'}}>面接設定</th>
               <th style={{textAlign:'right'}}>ブリッジ</th>
               <th style={{textAlign:'right'}}>企業提案</th>
+              <th style={{textAlign:'right'}}>推薦</th>
               <th style={{textAlign:'right'}}>企業面接</th>
               <th style={{textAlign:'right'}}>内定</th>
               <th style={{textAlign:'right'}}>承諾</th>
@@ -1410,6 +1531,7 @@ function CAComparePage() {
                     <td style={{textAlign:'right'}}>{ca.interviewSet}</td>
                     <td style={{textAlign:'right'}}>{ca.bridge}</td>
                     <td style={{textAlign:'right'}}>{ca.proposal}</td>
+                    <td style={{textAlign:'right'}}>{ca.recommendation}</td>
                     <td style={{textAlign:'right'}}>{ca.companyInterview}</td>
                     <td style={{textAlign:'right'}}>{ca.offer}</td>
                     <td style={{textAlign:'right',fontWeight:'700',color:'var(--success)'}}>{ca.acceptance}</td>
@@ -1864,11 +1986,94 @@ const INIT_GOALS_MAY_2026 = {
   } catch(e) {}
 })();
 
+// Excelファイルを候補者リストに変換（進捗管理.xlsx対応）
+function parseExcelToCandidate(workbook, existingCands, detectedCompany) {
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+  if (rows.length < 2) return { candidates: [], dupCount: 0, preview: [] };
+  // ヘッダー行を探す（氏名・名前を含む行）
+  let headerIdx = 0;
+  for (let i = 0; i < Math.min(5, rows.length); i++) {
+    if (rows[i].some(c => c === '氏名' || c === '名前' || c === '担当者')) { headerIdx = i; break; }
+  }
+  const headers = rows[headerIdx].map(h => String(h||'').trim());
+  const fi = k => headers.indexOf(k);
+  const colName = fi('氏名') >= 0 ? fi('氏名') : fi('名前');
+  const colPhone = fi('電話番号') >= 0 ? fi('電話番号') : fi('携帯番号');
+  const colCA = fi('担当者') >= 0 ? fi('担当者') : fi('担当CA');
+  const colStatus = fi('ステータス');
+  const colAge = fi('年齢');
+  const colGender = fi('性別');
+  const colPref = fi('都道府県');
+  const colJob = fi('職種');
+  const colMedia = fi('媒体') >= 0 ? fi('媒体') : fi('流入媒体');
+  const colEmail = fi('メールアドレス') >= 0 ? fi('メールアドレス') : fi('Email');
+  const colDate = fi('流入日') >= 0 ? fi('流入日') : fi('登録日') >= 0 ? fi('登録日') : fi('面接設定日');
+  const colInterview = fi('初回面接日') >= 0 ? fi('初回面接日') : fi('面接予定日');
+  const colRec = fi('推薦') >= 0 ? fi('推薦') : fi('推薦日');
+  const colMemo = fi('メモ') >= 0 ? fi('メモ') : fi('備考');
+  const colCompany = fi('企業名') >= 0 ? fi('企業名') : fi('流入企業名');
+  const parseDate = v => {
+    if (!v) return '';
+    if (typeof v === 'number') {
+      try { const d = XLSX.SSF.parse_date_code(v); return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`; } catch { return ''; }
+    }
+    const s = String(v).trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+    if (/^\d{4}\/\d{1,2}\/\d{1,2}/.test(s)) { const [y,m,d]=s.split('/'); return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
+    return s;
+  };
+  const existing = existingCands || [];
+  const candidates = [];
+  let dupCount = 0;
+  const preview = [headers.slice(0,8).join(' | ')];
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const row = rows[i];
+    const name = String(row[colName] || '').trim();
+    if (!name) continue;
+    if (i - headerIdx <= 5) preview.push(row.slice(0,8).map(v=>String(v||'').trim()).join(' | '));
+    const phone = String(row[colPhone] || '').replace(/\D/g,'');
+    const email = String(row[colEmail] || '').trim();
+    const isDup = existing.some(e => {
+      const ep = String(e.phone||'').replace(/\D/g,'');
+      return (name && name === e.name) || (phone && phone === ep) || (email && email === e.email && email);
+    });
+    if (isDup) { dupCount++; continue; }
+    const status = colStatus >= 0 ? String(row[colStatus]||'').trim() : 'アプローチ中';
+    const recVal = colRec >= 0 ? row[colRec] : '';
+    const isRec5 = String(recVal||'').includes('5月') || String(recVal||'').includes('5');
+    candidates.push({
+      id: `xl_${Date.now()}_${i}`,
+      name,
+      phone: String(row[colPhone]||'').trim(),
+      age: colAge >= 0 ? parseInt(row[colAge]) || 0 : 0,
+      gender: colGender >= 0 ? String(row[colGender]||'').trim() : '',
+      prefecture: colPref >= 0 ? String(row[colPref]||'').trim() : '',
+      jobType: colJob >= 0 ? String(row[colJob]||'').trim() : '',
+      media: colMedia >= 0 ? String(row[colMedia]||'').trim() : '',
+      email,
+      assignedCA: colCA >= 0 ? String(row[colCA]||'').trim() : '',
+      status: status || 'アプローチ中',
+      csStatus: status || 'アプローチ中',
+      validStatus: '有効',
+      createdAt: parseDate(colDate >= 0 ? row[colDate] : ''),
+      firstInterviewDate: parseDate(colInterview >= 0 ? row[colInterview] : ''),
+      recommendationDate: isRec5 ? '2026-05-15' : (parseDate(colRec >= 0 ? row[colRec] : '')),
+      memo: colMemo >= 0 ? String(row[colMemo]||'').trim() : '',
+      sourceCompany: colCompany >= 0 ? String(row[colCompany]||'').trim() : detectedCompany || '',
+      expectedRevenue: 0,
+    });
+  }
+  return { candidates, dupCount, preview };
+}
+
 function CSVImportModal({ onImport, onClose, existingCands }) {
   const [csvText, setCsvText] = useState('');
   const [preview, setPreview] = useState([]);
   const [detectedCompany, setDetectedCompany] = useState('');
   const [dupCount, setDupCount] = useState(0);
+  const [xlsxRows, setXlsxRows] = useState(null); // Excel parsed rows
   const detectCompanyFromFilename = name => {
     const n = name.toLowerCase();
     if (n.includes('nextrend') || n.includes('ネクストレンド')) return 'ネクストレンド';
@@ -1881,31 +2086,56 @@ function CSVImportModal({ onImport, onClose, existingCands }) {
     if (!file) return;
     const company = detectCompanyFromFilename(file.name);
     setDetectedCompany(company);
-    const reader = new FileReader();
-    reader.onload = ev => {
-      const text = ev.target.result;
-      setCsvText(text);
-      setPreview(text.trim().split('\n').slice(0, 6));
-      // 重複数チェック（プレビュー時点）
-      try {
-        const lines = text.trim().split('\n');
-        const headers = lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,''));
-        const rows = lines.slice(1).map(line=>{
-          const vals = line.split(',').map(v=>v.trim().replace(/^"|"$/g,''));
-          const o={}; headers.forEach((h,j)=>{o[h]=vals[j]||'';});
-          return { name:o['氏名']||o['名前']||'', phone:o['電話番号']||'', email:o['メールアドレス']||'' };
-        }).filter(r=>r.name);
-        const existing = existingCands || [];
-        const dups = rows.filter(r => existing.some(e =>
-          (r.name && r.name === e.name) && (r.phone === e.phone || r.email === e.email)
-        ));
-        setDupCount(dups.length);
-      } catch { setDupCount(0); }
-    };
-    reader.readAsText(file, 'UTF-8');
+    const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.xlsm');
+    if (isExcel) {
+      // Excelファイル処理
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try {
+          const data = new Uint8Array(ev.target.result);
+          const workbook = XLSX.read(data, { type: 'array', cellDates: false });
+          const result = parseExcelToCandidate(workbook, existingCands, company);
+          setXlsxRows(result.candidates);
+          setPreview(result.preview);
+          setDupCount(result.dupCount);
+          setCsvText('__xlsx__'); // フラグとして使用
+        } catch(err) { alert('Excelファイルの読み込みに失敗しました: ' + err.message); }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      // CSV処理
+      setXlsxRows(null);
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const text = ev.target.result;
+        setCsvText(text);
+        setPreview(text.trim().split('\n').slice(0, 6));
+        try {
+          const lines = text.trim().split('\n');
+          const headers = lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,''));
+          const rows = lines.slice(1).map(line=>{
+            const vals = line.split(',').map(v=>v.trim().replace(/^"|"$/g,''));
+            const o={}; headers.forEach((h,j)=>{o[h]=vals[j]||'';});
+            return { name:o['氏名']||o['名前']||'', phone:o['電話番号']||'', email:o['メールアドレス']||'' };
+          }).filter(r=>r.name);
+          const existing = existingCands || [];
+          const dups = rows.filter(r => existing.some(e =>
+            (r.name && r.name === e.name) && (r.phone === e.phone || r.email === e.email)
+          ));
+          setDupCount(dups.length);
+        } catch { setDupCount(0); }
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
   };
   const doImport = () => {
     if (!csvText) return;
+    if (xlsxRows) {
+      // Excelインポート
+      onImport(xlsxRows);
+      return;
+    }
+    // CSV インポート
     const lines = csvText.trim().split('\n');
     const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,''));
     const existing = existingCands || [];
@@ -1948,7 +2178,8 @@ function CSVImportModal({ onImport, onClose, existingCands }) {
           <div style={{fontWeight:'600',marginBottom:'6px',color:'var(--text-primary)'}}>CSVヘッダー行（この順番で作成）</div>
           <code style={{fontSize:'12px',color:'var(--accent)',wordBreak:'break-all'}}>氏名,性別,年齢,都道府県,職種,流入日,媒体,担当CA,電話番号,メールアドレス,流入企業名,ステータス,面接予定日,メモ</code>
         </div>
-        <input type="file" accept=".csv,.txt" onChange={handleFile} style={{marginBottom:'8px',fontSize:'15px',display:'block'}}/>
+        <input type="file" accept=".csv,.txt,.xlsx,.xls,.xlsm" onChange={handleFile} style={{marginBottom:'8px',fontSize:'15px',display:'block'}}/>
+        <div style={{fontSize:'12px',color:'var(--text-muted)',marginBottom:'8px'}}>📊 Excel (.xlsx) と CSV (.csv) に対応しています</div>
         {detectedCompany && (
           <div style={{marginBottom:'12px',padding:'8px 12px',background:'var(--accent-subtle)',border:'1px solid var(--accent-light)',borderRadius:'6px',fontSize:'14px',color:'var(--accent)'}}>
             📁 ファイル名から運用企業を検出: <strong>{detectedCompany}</strong>（CSVに「流入企業名」列がない場合に自動セット）
@@ -2015,6 +2246,7 @@ function CandidateManagePage() {
   const [sortKey, setSortKey] = useState('createdAt');
   const [sortDir, setSortDir] = useState('desc');
   const [filterEnded, setFilterEnded] = useState(true);
+  const [editCandidate, setEditCandidate] = useState(null);
 
   const saveCands = newCands => {
     setCands(newCands);
@@ -2099,7 +2331,7 @@ function CandidateManagePage() {
             <button onClick={()=>setShowCSV(true)} style={{
               padding:'6px 14px',borderRadius:'6px',border:'1px solid var(--accent)',fontSize:'14px',fontWeight:'600',cursor:'pointer',
               background:'var(--accent)',color:'#fff',whiteSpace:'nowrap',
-            }}>📥 CSVインポート</button>
+            }}>📥 CSV/Excelインポート</button>
           </div>
         </div>
         <div className="data-table-wrap">
@@ -2120,6 +2352,7 @@ function CandidateManagePage() {
                 <th style={{minWidth:'160px'}}>メールアドレス</th>
                 <th style={{minWidth:'120px'}}>メモ</th>
                 <th style={{minWidth:'110px'}}>結果</th>
+                <th style={{minWidth:'60px',textAlign:'center'}}>編集</th>
                 <th style={{minWidth:'60px',textAlign:'center'}}>削除</th>
               </tr>
             </thead>
@@ -2204,6 +2437,14 @@ function CandidateManagePage() {
                         </select>
                       </td>
                       <td style={{textAlign:'center'}}>
+                        <button onClick={() => setEditCandidate(c)}
+                          style={{fontSize:'13px',padding:'3px 8px',border:'1px solid var(--accent)',borderRadius:'4px',
+                            background:'var(--accent-light)',color:'var(--accent)',cursor:'pointer',fontWeight:'600',
+                            lineHeight:'1.4'}}>
+                          ✏️
+                        </button>
+                      </td>
+                      <td style={{textAlign:'center'}}>
                         <button onClick={() => handleDeleteCandidate(c.id, c.name)}
                           style={{fontSize:'13px',padding:'3px 8px',border:'1px solid var(--danger)',borderRadius:'4px',
                             background:'var(--danger-bg)',color:'var(--danger)',cursor:'pointer',fontWeight:'600',
@@ -2219,6 +2460,16 @@ function CandidateManagePage() {
         </div>
       </div>
       {showCSV && <CSVImportModal existingCands={cands} onImport={handleCSVImport} onClose={()=>setShowCSV(false)}/>}
+      {editCandidate && (
+        <AdminEditModal
+          candidate={editCandidate}
+          onClose={() => setEditCandidate(null)}
+          onSave={(updated) => {
+            saveCands(cands.map(c => c.id === updated.id ? updated : c));
+            setEditCandidate(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -2683,6 +2934,137 @@ function GoalsPage({ period }) {
   );
 }
 
+// ====== 管理者 候補者編集モーダル ======
+const PREFECTURE_OPTIONS_ADMIN = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
+const MEDIA_OPTIONS_ADMIN = ['Indeed','doda','マイナビ転職','リクナビNEXT','Green','パーソル','その他'];
+
+function AdminEditModal({candidate, onClose, onSave}) {
+  const [form, setForm] = useState({
+    name: candidate.name || '',
+    phone: candidate.phone || '',
+    age: candidate.age || '',
+    gender: candidate.gender || '男',
+    prefecture: candidate.prefecture || '東京都',
+    jobType: candidate.jobType || '',
+    media: candidate.media || 'Indeed',
+    email: candidate.email || '',
+    assignedCA: candidate.assignedCA || '',
+    status: candidate.status || '',
+    firstContactDate: candidate.firstContactDate || '',
+    firstInterviewDate: (candidate.firstInterviewDate||'').slice(0,10),
+    recommendationDate: candidate.recommendationDate || '',
+    companyInterviewDate: candidate.companyInterviewDate || '',
+    bridgeDate: candidate.bridgeDate || '',
+    offerDate: candidate.offerDate || '',
+    memo: candidate.memo || '',
+    expectedRevenue: candidate.expectedRevenue || 0,
+  });
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+  const [error, setError] = useState('');
+  const handleSave = () => {
+    if (!form.name.trim()) { setError('氏名は必須です'); return; }
+    const updated = {
+      ...candidate,
+      ...form,
+      age: form.age ? parseInt(form.age) : candidate.age,
+      expectedRevenue: form.expectedRevenue ? parseInt(form.expectedRevenue) : 0,
+    };
+    onSave(updated);
+    onClose();
+  };
+  const fs = {width:'100%',padding:'6px 10px',border:'1px solid var(--border)',borderRadius:'4px',fontSize:'13px',background:'var(--bg-base)',color:'var(--text-primary)',boxSizing:'border-box'};
+  const ls = {fontSize:'12px',fontWeight:'600',color:'var(--text-secondary)',display:'block',marginBottom:'3px'};
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center'}} onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div style={{background:'var(--bg-card)',borderRadius:'12px',padding:'24px',width:'600px',maxWidth:'96vw',maxHeight:'90vh',overflowY:'auto',boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'18px'}}>
+          <h3 style={{margin:0,fontSize:'16px',fontWeight:'700'}}>候補者編集：{candidate.name}</h3>
+          <button onClick={onClose} style={{background:'none',border:'none',fontSize:'20px',cursor:'pointer',color:'var(--text-muted)'}}>×</button>
+        </div>
+        {error && <div style={{background:'var(--danger-bg)',color:'var(--danger)',padding:'8px 12px',borderRadius:'4px',marginBottom:'12px',fontSize:'13px'}}>{error}</div>}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px'}}>
+          <div style={{gridColumn:'1/-1'}}>
+            <label style={ls}>氏名 <span style={{color:'var(--danger)'}}>*</span></label>
+            <input style={fs} value={form.name} onChange={e=>set('name',e.target.value)} />
+          </div>
+          <div><label style={ls}>電話番号</label><input style={fs} value={form.phone} onChange={e=>set('phone',e.target.value)} /></div>
+          <div><label style={ls}>メール</label><input style={fs} value={form.email} onChange={e=>set('email',e.target.value)} type="email" /></div>
+          <div><label style={ls}>年齢</label><input style={fs} value={form.age} onChange={e=>set('age',e.target.value)} type="number" /></div>
+          <div><label style={ls}>性別</label>
+            <select style={fs} value={form.gender} onChange={e=>set('gender',e.target.value)}>
+              {['男','女','その他'].map(g=><option key={g}>{g}</option>)}
+            </select>
+          </div>
+          <div><label style={ls}>都道府県</label>
+            <select style={fs} value={form.prefecture} onChange={e=>set('prefecture',e.target.value)}>
+              {PREFECTURE_OPTIONS_ADMIN.map(p=><option key={p}>{p}</option>)}
+            </select>
+          </div>
+          <div><label style={ls}>流入媒体</label>
+            <select style={fs} value={form.media} onChange={e=>set('media',e.target.value)}>
+              {MEDIA_OPTIONS_ADMIN.map(m=><option key={m}>{m}</option>)}
+            </select>
+          </div>
+          <div style={{gridColumn:'1/-1'}}><label style={ls}>職種</label><input style={fs} value={form.jobType} onChange={e=>set('jobType',e.target.value)} /></div>
+          <div><label style={ls}>担当CA</label>
+            <select style={fs} value={form.assignedCA} onChange={e=>set('assignedCA',e.target.value)}>
+              <option value="">未割当</option>
+              {ALL_CAS_ADMIN.map(ca=><option key={ca}>{ca}</option>)}
+            </select>
+          </div>
+          <div><label style={ls}>ステータス</label>
+            <select style={fs} value={form.status} onChange={e=>set('status',e.target.value)}>
+              {ALL_STATUSES_ADMIN.map(s=><option key={s}>{s}</option>)}
+            </select>
+          </div>
+          <div><label style={ls}>初回接触日</label><input style={fs} value={form.firstContactDate} onChange={e=>set('firstContactDate',e.target.value)} type="date" /></div>
+          <div><label style={ls}>初回面接日</label><input style={fs} value={form.firstInterviewDate} onChange={e=>set('firstInterviewDate',e.target.value)} type="date" /></div>
+          <div><label style={ls}>ブリッジ日</label><input style={fs} value={form.bridgeDate} onChange={e=>set('bridgeDate',e.target.value)} type="date" /></div>
+          <div><label style={ls}>推薦日</label><input style={fs} value={form.recommendationDate} onChange={e=>set('recommendationDate',e.target.value)} type="date" /></div>
+          <div><label style={ls}>企業面接日</label><input style={fs} value={form.companyInterviewDate} onChange={e=>set('companyInterviewDate',e.target.value)} type="date" /></div>
+          <div><label style={ls}>内定日</label><input style={fs} value={form.offerDate} onChange={e=>set('offerDate',e.target.value)} type="date" /></div>
+          <div><label style={ls}>想定売上（円）</label><input style={fs} value={form.expectedRevenue} onChange={e=>set('expectedRevenue',e.target.value)} type="number" /></div>
+          <div style={{gridColumn:'1/-1'}}><label style={ls}>メモ</label>
+            <textarea style={{...fs,minHeight:'60px',resize:'vertical'}} value={form.memo} onChange={e=>set('memo',e.target.value)} />
+          </div>
+        </div>
+        <div style={{display:'flex',gap:'10px',justifyContent:'flex-end',marginTop:'18px'}}>
+          <button onClick={onClose} style={{padding:'7px 18px',borderRadius:'4px',border:'1px solid var(--border)',background:'var(--bg-base)',color:'var(--text-secondary)',cursor:'pointer',fontSize:'13px'}}>キャンセル</button>
+          <button onClick={handleSave} style={{padding:'7px 22px',borderRadius:'4px',border:'none',background:'var(--accent)',color:'#fff',cursor:'pointer',fontSize:'13px',fontWeight:'600'}}>保存する</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ====== CSV EXPORT ======
+function exportAllCandidatesCSV() {
+  const cands = JSON.parse(localStorage.getItem('crm-candidates') || '[]');
+  const cols = [
+    {key:'id',label:'ID'},{key:'name',label:'氏名'},{key:'age',label:'年齢'},
+    {key:'gender',label:'性別'},{key:'phone',label:'電話番号'},{key:'email',label:'メール'},
+    {key:'prefecture',label:'都道府県'},{key:'jobType',label:'職種'},{key:'media',label:'媒体'},
+    {key:'assignedCA',label:'担当CA'},{key:'assignedCS',label:'担当CS'},
+    {key:'status',label:'ステータス'},{key:'validStatus',label:'有効/無効'},
+    {key:'companyName',label:'企業名'},{key:'createdAt',label:'登録日'},
+    {key:'firstContactDate',label:'初回接触日'},{key:'firstInterviewDate',label:'初回面接日'},
+    {key:'bridgeDate',label:'ブリッジ日'},{key:'bridgeResult',label:'ブリッジ結果'},
+    {key:'recommendationDate',label:'推薦日'},{key:'companyInterviewDate',label:'企業面接日'},
+    {key:'offerDate',label:'内定日'},{key:'expectedRevenue',label:'想定売上'},{key:'memo',label:'メモ'},
+  ];
+  const esc = v => { if (v===null||v===undefined) return ''; const s=String(v); return (s.includes(',')||s.includes('"')||s.includes('\n')) ? '"'+s.replace(/"/g,'""')+'"' : s; };
+  const header = cols.map(c=>c.label).join(',');
+  const rows = cands.map(c=>cols.map(col=>esc(c[col.key])).join(','));
+  const csv = '﻿' + [header,...rows].join('\r\n');
+  const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const now = new Date();
+  const ts = now.getFullYear()+('0'+(now.getMonth()+1)).slice(-2)+('0'+now.getDate()).slice(-2);
+  a.href=url; a.download='crm_all_candidates_'+ts+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
 function App() {
   const [theme, setTheme] = useState(()=>localStorage.getItem('crm-theme')||'minimal-light');
   const [page, setPage] = useState('summary');
@@ -2766,6 +3148,11 @@ function App() {
             </select>
           </div>
           <div className="topbar-right">
+            <button onClick={()=>exportAllCandidatesCSV()} style={{
+              fontSize:'13px',padding:'5px 12px',borderRadius:'var(--radius-sm)',
+              border:'1px solid var(--border)',background:'var(--bg-base)',
+              color:'var(--text-secondary)',cursor:'pointer',display:'flex',alignItems:'center',gap:'4px'
+            }} title="全候補者データをCSVでダウンロード">⬇ CSV</button>
             <ThemeSwitcher theme={theme} setTheme={setTheme}/>
             <div style={{width:'32px',height:'32px',borderRadius:'50%',background:'var(--warning)',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'15px',fontWeight:'700'}}>管</div>
           </div>
@@ -2775,7 +3162,26 @@ function App() {
     </div>
   );
 }
-ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+// Firestore同期してからアプリ起動
+(async function() {
+  try {
+    if (window.__syncFromFirestore) {
+      await window.__syncFromFirestore();
+      console.log('[Admin] Firestore同期完了');
+    }
+  } catch(e) { console.warn('[Admin] Firestore同期失敗:', e); }
+
+  const root = ReactDOM.createRoot(document.getElementById('root'));
+  root.render(<App/>);
+
+  // リアルタイムリスナー開始（他のCAが更新したら自動再描画）
+  if (window.__startFirestoreListener) {
+    window.__startFirestoreListener(function(key) {
+      console.log('[Admin] Firestoreからリアルタイム更新:', key);
+      root.render(<App/>);
+    });
+  }
+})();
 
 </script>
 </body>
