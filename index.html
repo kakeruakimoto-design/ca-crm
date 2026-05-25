@@ -3617,6 +3617,15 @@ function SuisenPrepPage() {
   });
   const [selectedHistoryIdx, setSelectedHistoryIdx] = React.useState(null); // null=新規入力, 0〜4=履歴表示
 
+  // 履歴書・職務経歴書・推薦文タブ 候補者名と履歴（直近5名、localStorage永続化）
+  const [candidateName, setCandidateName] = React.useState('');
+  const [tabHistory, setTabHistory] = React.useState(() => ({
+    resume:  (() => { try { return JSON.parse(localStorage.getItem('suisen-history-resume')  || '[]'); } catch { return []; } })(),
+    shokumu: (() => { try { return JSON.parse(localStorage.getItem('suisen-history-shokumu') || '[]'); } catch { return []; } })(),
+    suisen:  (() => { try { return JSON.parse(localStorage.getItem('suisen-history-suisen')  || '[]'); } catch { return []; } })(),
+  }));
+  const [historyIdx, setHistoryIdx] = React.useState(null); // null=新規入力, 0〜4=履歴表示
+
   const SUB_TABS = [
     { id: 'resume',  label: '📄 履歴書' },
     { id: 'shokumu', label: '📋 職務経歴書' },
@@ -3675,7 +3684,23 @@ function SuisenPrepPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `サーバーエラー (${res.status})`);
-      setResult(data.result || '');
+      const resultText = data.result || '';
+      setResult(resultText);
+      // 履歴書・職務経歴書・推薦文タブの履歴に保存（直近5名）
+      if (['resume', 'shokumu', 'suisen'].includes(subTab)) {
+        const name = candidateName.trim() || '候補者';
+        const now = new Date();
+        const dateStr = `${now.getMonth()+1}/${now.getDate()}`;
+        const entry = { name, date: dateStr, result: resultText };
+        const storageKey = `suisen-history-${subTab}`;
+        setTabHistory(prev => {
+          const prevList = prev[subTab] || [];
+          const updated = { ...prev, [subTab]: [entry, ...prevList.filter(h => h.name !== name)].slice(0, 5) };
+          try { localStorage.setItem(storageKey, JSON.stringify(updated[subTab])); } catch {}
+          return updated;
+        });
+        setHistoryIdx(0); // 保存後は直近タブを表示
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -3690,6 +3715,7 @@ function SuisenPrepPage() {
   const handleTabChange = (id) => {
     setSubTab(id); setResult(''); setError(''); setCopied(false);
     setPdfFiles([]); setAdditionalInfo(''); setResumeUrl('');
+    setCandidateName(''); setHistoryIdx(null);
   };
 
   const handleCheckPdfChange = async (e, setter) => {
@@ -3948,6 +3974,90 @@ function SuisenPrepPage() {
           {/* 右カラム：AI添削ツール */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
+            {/* 候補者名タブ（履歴 + 新規） */}
+            <div style={{ display: 'flex', gap: '0', borderBottom: '2px solid var(--border)', overflowX: 'auto' }}>
+              {(tabHistory[subTab] || []).map((h, i) => (
+                <button key={i} onClick={() => { setHistoryIdx(i); setResult(''); setError(''); }} style={{
+                  padding: '7px 16px', fontSize: '13px', fontWeight: historyIdx === i ? 700 : 400,
+                  background: 'none', border: 'none', borderBottom: historyIdx === i ? '2px solid var(--accent)' : '2px solid transparent',
+                  marginBottom: '-2px', color: historyIdx === i ? 'var(--accent)' : 'var(--text-muted)',
+                  cursor: 'pointer', whiteSpace: 'nowrap',
+                }}>
+                  {h.name} <span style={{ fontSize: '11px', opacity: 0.7 }}>({h.date})</span>
+                </button>
+              ))}
+              <button onClick={() => { setHistoryIdx(null); setResult(''); setError(''); setCandidateName(''); }} style={{
+                padding: '7px 16px', fontSize: '13px', fontWeight: historyIdx === null ? 700 : 400,
+                background: 'none', border: 'none', borderBottom: historyIdx === null ? '2px solid var(--accent)' : '2px solid transparent',
+                marginBottom: '-2px', color: historyIdx === null ? 'var(--accent)' : 'var(--text-muted)',
+                cursor: 'pointer', whiteSpace: 'nowrap',
+              }}>
+                ＋ 新規
+              </button>
+            </div>
+
+            {/* 履歴表示モード */}
+            {historyIdx !== null && (tabHistory[subTab] || [])[historyIdx] && (() => {
+              const h = (tabHistory[subTab] || [])[historyIdx];
+              const urlMatch = h.result.match(/https:\/\/docs\.google\.com\/[^\s]+/);
+              const isGoogleOutput = (subTab === 'resume' || subTab === 'shokumu') && urlMatch;
+              if (isGoogleOutput) {
+                const lines = h.result.split('\n').filter(l => !l.match(/^https:\/\//));
+                const googleUrl = urlMatch[0];
+                const isSheet = googleUrl.includes('/spreadsheets/');
+                return (
+                  <div style={{ padding: '16px', background: 'var(--success-bg)', border: '1px solid var(--success)', borderRadius: 'var(--radius)' }}>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--success)', marginBottom: '10px' }}>{lines[0]}</div>
+                    {lines.slice(1).map((l, i) => l && <div key={i} style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>{l}</div>)}
+                    <a href={googleUrl} target="_blank" rel="noopener noreferrer" style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '12px',
+                      padding: '10px 20px', background: isSheet ? '#0f9d58' : '#4285f4',
+                      color: '#fff', borderRadius: 'var(--radius)', fontWeight: 700, fontSize: '14px', textDecoration: 'none',
+                    }}>
+                      {isSheet ? '📊 Googleスプレッドシートを開く' : '📄 Googleドキュメントを開く'}
+                    </a>
+                  </div>
+                );
+              }
+              return (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)' }}>✅ {h.name} の結果</label>
+                    <button onClick={() => { navigator.clipboard.writeText(h.result).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); }} style={{
+                      padding: '5px 14px', fontSize: '12px', fontWeight: 600,
+                      background: copied ? 'var(--success)' : 'var(--bg-base)',
+                      color: copied ? '#fff' : 'var(--text-secondary)',
+                      border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                    }}>{copied ? '✅ コピー済み' : '📋 コピー'}</button>
+                  </div>
+                  <pre style={{
+                    whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: '16px',
+                    background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+                    fontSize: '13px', lineHeight: '1.7', color: 'var(--text-primary)', maxHeight: '600px', overflowY: 'auto',
+                  }}>{h.result}</pre>
+                </div>
+              );
+            })()}
+
+            {/* 新規入力フォーム（historyIdx === null のとき表示） */}
+            {historyIdx === null && <>
+
+            {/* 候補者名入力 */}
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>👤 候補者名（タブに表示されます）</label>
+              <input
+                type="text"
+                value={candidateName}
+                onChange={e => setCandidateName(e.target.value)}
+                placeholder="例：山田 太郎"
+                style={{
+                  width: '100%', padding: '10px 12px', fontSize: '14px',
+                  border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+                  background: 'var(--bg-card)', color: 'var(--text-primary)', boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
             {/* 入力エリア：履歴書=URL、職務経歴書=PDF+URL、推薦文=PDFアップロード */}
             <div>
               {subTab === 'resume' ? (
@@ -4112,7 +4222,6 @@ function SuisenPrepPage() {
 
             {/* 結果表示 */}
             {result && (() => {
-              // Google SheetsまたはDocsリンクを含む結果（履歴書・職務経歴書）はリンクカードで表示
               const urlMatch = result.match(/https:\/\/docs\.google\.com\/[^\s]+/);
               const isGoogleOutput = (subTab === 'resume' || subTab === 'shokumu') && urlMatch;
               if (isGoogleOutput) {
@@ -4121,23 +4230,18 @@ function SuisenPrepPage() {
                 const isSheet = googleUrl.includes('/spreadsheets/');
                 return (
                   <div style={{ marginTop: '8px', padding: '16px', background: 'var(--success-bg)', border: '1px solid var(--success)', borderRadius: 'var(--radius)' }}>
-                    <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--success)', marginBottom: '10px' }}>
-                      {lines[0]}
-                    </div>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--success)', marginBottom: '10px' }}>{lines[0]}</div>
                     {lines.slice(1).map((l, i) => l && <div key={i} style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>{l}</div>)}
-                    <a href={googleUrl} target="_blank" rel="noopener noreferrer"
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '12px',
-                        padding: '10px 20px', background: isSheet ? '#0f9d58' : '#4285f4',
-                        color: '#fff', borderRadius: 'var(--radius)', fontWeight: 700, fontSize: '14px',
-                        textDecoration: 'none',
-                      }}>
+                    <a href={googleUrl} target="_blank" rel="noopener noreferrer" style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '12px',
+                      padding: '10px 20px', background: isSheet ? '#0f9d58' : '#4285f4',
+                      color: '#fff', borderRadius: 'var(--radius)', fontWeight: 700, fontSize: '14px', textDecoration: 'none',
+                    }}>
                       {isSheet ? '📊 Googleスプレッドシートを開く' : '📄 Googleドキュメントを開く'}
                     </a>
                   </div>
                 );
               }
-              // 推薦文などテキスト出力
               return (
                 <div style={{ marginTop: '8px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -4147,22 +4251,18 @@ function SuisenPrepPage() {
                       background: copied ? 'var(--success)' : 'var(--bg-base)',
                       color: copied ? '#fff' : 'var(--text-secondary)',
                       border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                    }}>
-                      {copied ? '✅ コピー済み' : '📋 コピー'}
-                    </button>
+                    }}>{copied ? '✅ コピー済み' : '📋 コピー'}</button>
                   </div>
                   <pre style={{
-                    whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                    padding: '16px', background: 'var(--bg-card)',
-                    border: '1px solid var(--border)', borderRadius: 'var(--radius)',
-                    fontSize: '13px', lineHeight: '1.7', color: 'var(--text-primary)',
-                    maxHeight: '600px', overflowY: 'auto',
-                  }}>
-                    {result}
-                  </pre>
+                    whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: '16px',
+                    background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+                    fontSize: '13px', lineHeight: '1.7', color: 'var(--text-primary)', maxHeight: '600px', overflowY: 'auto',
+                  }}>{result}</pre>
                 </div>
               );
             })()}
+
+            </> /* 新規入力フォーム終了 */}
           </div>
         </div>
       )}
