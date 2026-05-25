@@ -561,10 +561,24 @@ select.filter-select {
       return synced;
     };
 
+    // リアルタイム更新リスナー（他のCAが更新したら即反映）
+    window.__startFirestoreListener = function(onUpdate) {
+      if (!window.__crmDb) return;
+      SYNC_KEYS.forEach(function(key) {
+        window.__crmDb.collection('crm').doc(key).onSnapshot(function(snap) {
+          if (snap.exists && snap.data() && snap.data().v !== undefined) {
+            _orig(key, JSON.stringify(snap.data().v));
+            if (onUpdate) onUpdate(key);
+          }
+        }, function(e) { console.warn('[Firestore] listener error:', key, e); });
+      });
+    };
+
     console.log('[Firestore] 初期化完了 - nextrend-crm');
   } catch(e) {
     console.warn('[Firestore] 初期化失敗:', e);
     window.__syncFromFirestore = async function() { return []; };
+    window.__startFirestoreListener = function() {};
   }
 })();
 </script>
@@ -1439,26 +1453,24 @@ function _calcRealMetrics(candidates, period) {
       }).length
     : candidates.filter(c => !!c.offerDate).length;
 
-  // 承諾: crm-accepted の acceptedAt がこの月
+  // 承諾: crm-candidates の status='承諾' の候補者をカウント（CA自身の担当のみ）
   let aAC = 0;
   let aCO_AC = 0;
   try {
-    const _allAcc = JSON.parse(localStorage.getItem('crm-accepted') || '[]');
-    const myAcc = _allAcc.filter(a => a.assignedCA === CA_MY_NAME);
+    const _accCands = candidates.filter(c => (c.status === '承諾' || c.caStatus === '承諾'));
     if (pk) {
-      const thisAcc = myAcc.filter(a => {
-        const ad = (a.acceptedAt||'').slice(0,10);
+      const thisAcc = _accCands.filter(c => {
+        const ad = (c.acceptedAt || c.offerDate || '').slice(0, 10);
         return ad.startsWith(pk) && ad <= _todayStr;
       });
       aAC = thisAcc.length;
       // 持ち越し承諾: 今月承諾 AND firstInterviewDate が前月以前
-      aCO_AC = thisAcc.filter(a => {
-        const cand = candidates.find(c => c.id === a.id);
-        const fid = (cand?.firstInterviewDate || '').slice(0, 7);
+      aCO_AC = thisAcc.filter(c => {
+        const fid = (c.firstInterviewDate || '').slice(0, 7);
         return fid && fid < pk;
       }).length;
     } else {
-      aAC = myAcc.length;
+      aAC = _accCands.length;
     }
   } catch {}
 
@@ -2117,6 +2129,7 @@ function CandidatesPage() {
   const [showEnded, setShowEnded] = React.useState(false);
   const [sortKey, setSortKey] = React.useState('createdAt');
   const [sortDir, setSortDir] = React.useState('desc');
+  const [historyId, setHistoryId] = React.useState(null);
 
   const loadMyCandidates = () => {
     try {
@@ -2157,20 +2170,50 @@ function CandidatesPage() {
       if (st === '推薦'         && !c.recommendationDate)  { extra.recommendationDate = todayISO; }
       if (st === '企業面接'     && !c.companyInterviewDate){ extra.companyInterviewDate = todayISO; }
       if (st === '内定'         && !c.offerDate)           { extra.offerDate = todayISO; }
+      if (st === '承諾'         && !c.acceptedAt)          { extra.acceptedAt = todayISO; }
       return extra;
     };
+    const addHistory = (c, newSt) => {
+      const prev = Array.isArray(c.statusHistory) ? c.statusHistory : [];
+      // 直前と同じステータスなら記録しない
+      if (prev.length > 0 && prev[prev.length-1].status === newSt) return prev;
+      return [...prev, {status: newSt, date: todayISO, ca: CA_MY_NAME}];
+    };
     const updated = candidates.map(c => c.id === id
-      ? {...c, status: newStatus, caStatus: newStatus, ...autoDateFields(c, newStatus)}
+      ? {...c, status: newStatus, caStatus: newStatus, ...autoDateFields(c, newStatus), statusHistory: addHistory(c, newStatus)}
       : c
     );
     setCandidates(updated);
     try {
       const stored = JSON.parse(localStorage.getItem('crm-candidates') || '[]');
-      const merged = stored.map(c => c.id === id
-        ? {...c, status: newStatus, caStatus: newStatus, ...autoDateFields(c, newStatus)}
-        : c
-      );
+      const merged = stored.map(c => {
+        if (c.id !== id) return c;
+        return {...c, status: newStatus, caStatus: newStatus, ...autoDateFields(c, newStatus), statusHistory: addHistory(c, newStatus)};
+      });
       localStorage.setItem('crm-candidates', JSON.stringify(merged));
+      // 承諾ステータスに変更したとき crm-accepted へ自動追加（重複なし）
+      if (newStatus === '承諾') {
+        try {
+          const acc = JSON.parse(localStorage.getItem('crm-accepted') || '[]');
+          const cand = merged.find(x => x.id === id) || {};
+          if (!acc.find(a => a.id === id)) {
+            const todayAcc = new Date().toISOString().slice(0, 10);
+            acc.push({
+              id,
+              name: cand.name || '',
+              age: cand.age || null,
+              assignedCA: cand.assignedCA || CA_MY_NAME,
+              companyName: cand.companyName || '',
+              acceptedAt: todayAcc,
+              acceptanceDate: todayAcc,
+              contractAmount: '',
+              result: '承諾',
+              joiningDate: '',
+            });
+            localStorage.setItem('crm-accepted', JSON.stringify(acc));
+          }
+        } catch {}
+      }
       window.dispatchEvent(new CustomEvent('crm-data-changed'));
     } catch {}
   };
@@ -2281,14 +2324,38 @@ function CandidatesPage() {
                 <tr key={c.id} style={{opacity: isEnded ? 0.45 : 1, background: isEnded ? 'var(--bg-hover)' : ''}}>
                   <td className="name" style={{color: isEnded ? 'var(--text-muted)' : '', minWidth:'6em', whiteSpace:'normal', wordBreak:'keep-all'}}>{c.name}</td>
                   <td>
-                    <select
-                      className="filter-select"
-                      value={c.status}
-                      onChange={e => handleInlineStatus(c.id, e.target.value)}
-                      style={{minWidth:'120px', fontSize:'14px'}}
-                    >
-                      {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
+                    <div style={{display:'flex',alignItems:'center',gap:'4px',position:'relative'}}>
+                      <select
+                        className="filter-select"
+                        value={c.status}
+                        onChange={e => handleInlineStatus(c.id, e.target.value)}
+                        style={{minWidth:'120px', fontSize:'14px'}}
+                      >
+                        {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      {Array.isArray(c.statusHistory) && c.statusHistory.length > 0 && (
+                        <span
+                          onClick={()=>setHistoryId(historyId===c.id ? null : c.id)}
+                          style={{fontSize:'11px',color:'var(--text-muted)',cursor:'pointer',padding:'1px 5px',border:'1px solid var(--border)',borderRadius:'10px',whiteSpace:'nowrap',background:'var(--bg-base)'}}
+                          title="ステータス履歴を表示"
+                        >履歴{c.statusHistory.length}</span>
+                      )}
+                      {historyId === c.id && Array.isArray(c.statusHistory) && (
+                        <div onClick={e=>e.stopPropagation()} style={{position:'absolute',top:'100%',left:0,zIndex:100,background:'var(--bg-card)',border:'1px solid var(--border)',borderRadius:'var(--radius)',padding:'10px 14px',minWidth:'240px',boxShadow:'var(--shadow-md)',marginTop:'4px'}}>
+                          <div style={{fontSize:'12px',fontWeight:'700',marginBottom:'8px',color:'var(--text-primary)'}}>ステータス履歴</div>
+                          {c.statusHistory.map((h,i)=>(
+                            <div key={i} style={{display:'flex',alignItems:'center',gap:'8px',fontSize:'12px',padding:'3px 0',borderBottom: i<c.statusHistory.length-1 ? '1px solid var(--border-light)' : 'none'}}>
+                              <span style={{color:'var(--text-muted)',minWidth:'72px'}}>{h.date||'—'}</span>
+                              <span style={{color:'var(--accent)',fontWeight:'600'}}>{h.status}</span>
+                              {h.ca && <span style={{color:'var(--text-muted)',fontSize:'11px'}}>({h.ca})</span>}
+                            </div>
+                          ))}
+                          <div style={{textAlign:'right',marginTop:'8px'}}>
+                            <span onClick={()=>setHistoryId(null)} style={{fontSize:'11px',color:'var(--text-muted)',cursor:'pointer'}}>閉じる</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </td>
                   {/* 面接設定日 */}
                   <td style={{fontVariantNumeric:'tabular-nums', whiteSpace:'nowrap', textAlign:'center', color:'var(--text-secondary)', fontSize:'13px'}}>
@@ -3525,8 +3592,11 @@ function readFileAsBase64(file) {
 function SuisenPrepPage() {
   const [subTab, setSubTab] = React.useState('resume');
   const [pdfFiles, setPdfFiles] = React.useState([]);
-  const [resumeUrl, setResumeUrl] = React.useState('');  // 履歴書タブ用URL
+  const [resumeUrl, setResumeUrl] = React.useState('');            // 履歴書タブ用URL
+  const [shokumuUrl, setShokumuUrl] = React.useState('');          // 職務経歴書タブ用URL（求職者提供）
+  const [shokumuResumePdf, setShokumuResumePdf] = React.useState(null); // 職務経歴書タブ用：完成済み履歴書PDF
   const [additionalInfo, setAdditionalInfo] = React.useState('');
+  const CA_NAME = localStorage.getItem('crm-my-name') || '';
   const [result, setResult] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
@@ -3536,10 +3606,16 @@ function SuisenPrepPage() {
   const [checkResumePdf, setCheckResumePdf] = React.useState(null);   // 履歴書PDF {name,base64}
   const [checkShokumuPdf, setCheckShokumuPdf] = React.useState(null); // 職務経歴書PDF {name,base64}
   const [checkSuisenText, setCheckSuisenText] = React.useState('');   // 推薦文テキスト
+  const [checkCandidateName, setCheckCandidateName] = React.useState(''); // 候補者名
   const [checkResult, setCheckResult] = React.useState('');
   const [checkLoading, setCheckLoading] = React.useState(false);
   const [checkError, setCheckError] = React.useState('');
   const [checkCopied, setCheckCopied] = React.useState(false);
+  // チェック履歴（直近5名、localStorage永続化）
+  const [checkHistory, setCheckHistory] = React.useState(() => {
+    try { return JSON.parse(localStorage.getItem('suisen-check-history') || '[]'); } catch { return []; }
+  });
+  const [selectedHistoryIdx, setSelectedHistoryIdx] = React.useState(null); // null=新規入力, 0〜4=履歴表示
 
   const SUB_TABS = [
     { id: 'resume',  label: '📄 履歴書' },
@@ -3556,8 +3632,8 @@ function SuisenPrepPage() {
   };
 
   const CONFIG = {
-    resume:  { multiple: false, label: '履歴書PDF', hint: '履歴書PDFを1枚選択してください', addLabel: '追加情報・注意点（任意）', addPlaceholder: '例：エンジニア職への転職希望', addHeight: '80px', btnLabel: '履歴書を添削', btnColor: 'var(--success)' },
-    shokumu: { multiple: false, label: '職務経歴書PDF', hint: '職務経歴書PDFを1枚選択してください', addLabel: '追加情報・注意点（任意）', addPlaceholder: '例：IT未経験からのキャリアチェンジ', addHeight: '80px', btnLabel: '職務経歴書を添削', btnColor: '#7c3aed' },
+    resume:  { multiple: false, label: '履歴書PDF', hint: '履歴書PDFを1枚選択してください', addLabel: '追加情報・注意点（任意）', addPlaceholder: '例：エンジニア職への転職希望', addHeight: '80px', btnLabel: '履歴書を作成', btnColor: 'var(--success)' },
+    shokumu: { multiple: false, label: '職務経歴書PDF', hint: '職務経歴書PDFを1枚選択してください', addLabel: '追加情報・注意点（任意）', addPlaceholder: '例：IT未経験からのキャリアチェンジ', addHeight: '80px', btnLabel: '職務経歴書を作成', btnColor: '#7c3aed' },
     suisen:  { multiple: true,  label: '履歴書・職務経歴書PDF', hint: '複数可（履歴書＋職務経歴書を同時に添付できます）', addLabel: '手入力情報（年収・就業可能時期・紹介先企業名など）', addPlaceholder: '現年収：〇〇万円\n希望年収：〇〇万円\n就業可能時期：〇〇\n現職の雇用形態：正社員 / 離職中\n自家用車の有無：有 / 無\n既往歴の有無：なし\n犯罪歴の有無：なし\n希望勤務地：〇〇\n出張に関して：可\n転居に関して：不可\n\n紹介先企業名：\n①\n②\n③\n\n希望選考方法：対面 / オンライン\n\n面接候補日：自己記入', addHeight: '180px', btnLabel: '推薦文を生成', btnColor: 'var(--accent)' },
   };
 
@@ -3580,13 +3656,17 @@ function SuisenPrepPage() {
   const handleRun = async () => {
     if (subTab === 'resume') {
       if (!resumeUrl.trim()) { setError('履歴書のURLを入力してください。'); return; }
+    } else if (subTab === 'shokumu') {
+      if (!shokumuResumePdf && !shokumuUrl.trim()) { setError('完成済み履歴書PDFを添付するか、職務経歴書のURLを入力してください。'); return; }
     } else {
       if (pdfFiles.length === 0) { setError('PDFを選択してください。'); return; }
     }
     setLoading(true); setError(''); setResult(''); setCopied(false);
     try {
       const body = subTab === 'resume'
-        ? { type: 'resume', resumeUrl: resumeUrl.trim(), additionalInfo }
+        ? { type: 'resume', resumeUrl: resumeUrl.trim(), caName: CA_NAME, additionalInfo }
+        : subTab === 'shokumu'
+        ? { type: 'shokumu', shokumuUrl: shokumuUrl.trim(), resumePdfBase64: shokumuResumePdf ? shokumuResumePdf.base64 : null, caName: CA_NAME, additionalInfo }
         : { type: subTab, pdfFiles, additionalInfo };
       const res = await fetch(`${RAILWAY_API}/api/suisen-prep`, {
         method: 'POST',
@@ -3642,7 +3722,19 @@ function SuisenPrepPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `サーバーエラー (${res.status})`);
-      setCheckResult(data.result || '');
+      const resultText = data.result || '';
+      setCheckResult(resultText);
+      // 履歴に保存（最大5件）
+      const name = checkCandidateName.trim() || '候補者';
+      const now = new Date();
+      const dateStr = `${now.getMonth()+1}/${now.getDate()}`;
+      const entry = { name, date: dateStr, result: resultText };
+      setCheckHistory(prev => {
+        const updated = [entry, ...prev.filter(h => h.name !== name)].slice(0, 5);
+        try { localStorage.setItem('suisen-check-history', JSON.stringify(updated)); } catch {}
+        return updated;
+      });
+      setSelectedHistoryIdx(0); // 保存後は直近タブを表示
     } catch (err) {
       setCheckError(err.message);
     } finally {
@@ -3683,71 +3775,37 @@ function SuisenPrepPage() {
       {/* ===== チェックタブ ===== */}
       {subTab === 'check' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ padding: '12px 16px', background: 'var(--info-bg)', border: '1px solid var(--info)', borderRadius: 'var(--radius)', fontSize: '13px', color: 'var(--info)' }}>
-            💡 履歴書・職務経歴書はPDFを添付、推薦文はテキストを貼り付けてAIチェックを実行します。1つだけでも実行できます。
-          </div>
 
-          {/* 履歴書 PDF */}
-          {[
-            { label: '📄 履歴書（PDF）', state: checkResumePdf, setter: setCheckResumePdf },
-            { label: '📋 職務経歴書（PDF）', state: checkShokumuPdf, setter: setCheckShokumuPdf },
-          ].map(item => (
-            <div key={item.label}>
-              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>{item.label}</label>
-              {item.state ? (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--success-bg)', border: '1px solid var(--success)', borderRadius: 'var(--radius-sm)' }}>
-                  <span style={{ fontSize: '13px', color: 'var(--success)', fontWeight: 600 }}>✅ {item.state.name}</span>
-                  <span onClick={() => item.setter(null)} style={{ cursor: 'pointer', fontSize: '12px', color: 'var(--text-muted)', padding: '0 4px' }}>✕</span>
-                </div>
-              ) : (
-                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 18px', cursor: 'pointer', border: '2px dashed var(--border)', borderRadius: 'var(--radius)', background: 'var(--bg-base)' }}>
-                  <svg width="22" height="22" viewBox="0 0 32 32" fill="none" stroke="var(--text-muted)" strokeWidth="1.5"><rect x="4" y="2" width="18" height="24" rx="2"/><path d="M18 2 L26 10 L22 10 L18 6 Z" fill="var(--bg-base)" stroke="var(--text-muted)"/><line x1="8" y1="14" x2="18" y2="14"/><line x1="8" y1="18" x2="16" y2="18"/></svg>
-                  <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>クリックしてPDFを選択</span>
-                  <input type="file" accept=".pdf,application/pdf" style={{ display: 'none' }} onChange={e => handleCheckPdfChange(e, item.setter)} />
-                </label>
-              )}
-            </div>
-          ))}
-
-          {/* 推薦文 テキスト */}
-          <div>
-            <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>✉️ 推薦文（テキスト貼り付け）</label>
-            <textarea
-              value={checkSuisenText}
-              onChange={e => setCheckSuisenText(e.target.value)}
-              placeholder="推薦文の内容をここに貼り付けてください..."
-              style={{
-                width: '100%', minHeight: '140px', padding: '12px', fontSize: '13px',
-                border: '1px solid var(--border)', borderRadius: 'var(--radius)',
-                background: 'var(--bg-card)', color: 'var(--text-primary)',
-                resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.6', boxSizing: 'border-box',
-              }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <button onClick={handleCheck} disabled={checkLoading} style={{
-              padding: '10px 28px', fontSize: '14px', fontWeight: 700,
-              background: checkLoading ? 'var(--border)' : '#0891b2',
-              color: '#fff', border: 'none', borderRadius: 'var(--radius)',
-              cursor: checkLoading ? 'not-allowed' : 'pointer',
+          {/* 候補者名タブ（履歴 + 新規） */}
+          <div style={{ display: 'flex', gap: '0', borderBottom: '2px solid var(--border)', overflowX: 'auto' }}>
+            {checkHistory.map((h, i) => (
+              <button key={i} onClick={() => setSelectedHistoryIdx(i)} style={{
+                padding: '7px 16px', fontSize: '13px', fontWeight: selectedHistoryIdx === i ? 700 : 400,
+                background: 'none', border: 'none', borderBottom: selectedHistoryIdx === i ? '2px solid #0891b2' : '2px solid transparent',
+                marginBottom: '-2px', color: selectedHistoryIdx === i ? '#0891b2' : 'var(--text-muted)',
+                cursor: 'pointer', whiteSpace: 'nowrap',
+              }}>
+                {h.name} <span style={{ fontSize: '11px', opacity: 0.7 }}>({h.date})</span>
+              </button>
+            ))}
+            <button onClick={() => { setSelectedHistoryIdx(null); setCheckResult(''); setCheckError(''); setCheckResumePdf(null); setCheckShokumuPdf(null); setCheckSuisenText(''); setCheckCandidateName(''); }} style={{
+              padding: '7px 16px', fontSize: '13px', fontWeight: selectedHistoryIdx === null ? 700 : 400,
+              background: 'none', border: 'none', borderBottom: selectedHistoryIdx === null ? '2px solid #0891b2' : '2px solid transparent',
+              marginBottom: '-2px', color: selectedHistoryIdx === null ? '#0891b2' : 'var(--text-muted)',
+              cursor: 'pointer', whiteSpace: 'nowrap',
             }}>
-              {checkLoading ? '⏳ チェック中...' : '✅ AIチェック実行'}
+              ＋ 新規チェック
             </button>
-            {checkLoading && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Claude AIが確認中です（30〜60秒かかる場合があります）</span>}
           </div>
 
-          {checkError && (
-            <div style={{ padding: '12px', background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: 'var(--radius)', fontSize: '13px', color: 'var(--danger)' }}>
-              ⚠️ {checkError}
-            </div>
-          )}
-
-          {checkResult && (
-            <div style={{ marginTop: '8px' }}>
+          {/* 履歴表示モード */}
+          {selectedHistoryIdx !== null && checkHistory[selectedHistoryIdx] && (
+            <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>✅ チェック結果</label>
-                <button onClick={() => { navigator.clipboard.writeText(checkResult).then(() => { setCheckCopied(true); setTimeout(() => setCheckCopied(false), 2000); }); }} style={{
+                <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  ✅ {checkHistory[selectedHistoryIdx].name} のチェック結果
+                </label>
+                <button onClick={() => { navigator.clipboard.writeText(checkHistory[selectedHistoryIdx].result).then(() => { setCheckCopied(true); setTimeout(() => setCheckCopied(false), 2000); }); }} style={{
                   padding: '5px 14px', fontSize: '12px', fontWeight: 600,
                   background: checkCopied ? 'var(--success)' : 'var(--bg-base)',
                   color: checkCopied ? '#fff' : 'var(--text-secondary)',
@@ -3763,9 +3821,90 @@ function SuisenPrepPage() {
                 fontSize: '13px', lineHeight: '1.7', color: 'var(--text-primary)',
                 maxHeight: '600px', overflowY: 'auto',
               }}>
-                {checkResult}
+                {checkHistory[selectedHistoryIdx].result}
               </pre>
             </div>
+          )}
+
+          {/* 新規チェック入力フォーム */}
+          {selectedHistoryIdx === null && (
+            <>
+              <div style={{ padding: '12px 16px', background: 'var(--info-bg)', border: '1px solid var(--info)', borderRadius: 'var(--radius)', fontSize: '13px', color: 'var(--info)' }}>
+                💡 履歴書・職務経歴書はPDFを添付、推薦文はテキストを貼り付けてAIチェックを実行します。1つだけでも実行できます。
+              </div>
+
+              {/* 候補者名入力 */}
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>👤 候補者名（タブに表示されます）</label>
+                <input
+                  type="text"
+                  value={checkCandidateName}
+                  onChange={e => setCheckCandidateName(e.target.value)}
+                  placeholder="例：山田 太郎"
+                  style={{
+                    width: '100%', padding: '10px 12px', fontSize: '14px',
+                    border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+                    background: 'var(--bg-card)', color: 'var(--text-primary)', boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              {/* 履歴書・職務経歴書 PDF */}
+              {[
+                { label: '📄 履歴書（PDF）', state: checkResumePdf, setter: setCheckResumePdf },
+                { label: '📋 職務経歴書（PDF）', state: checkShokumuPdf, setter: setCheckShokumuPdf },
+              ].map(item => (
+                <div key={item.label}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>{item.label}</label>
+                  {item.state ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--success-bg)', border: '1px solid var(--success)', borderRadius: 'var(--radius-sm)' }}>
+                      <span style={{ fontSize: '13px', color: 'var(--success)', fontWeight: 600 }}>✅ {item.state.name}</span>
+                      <span onClick={() => item.setter(null)} style={{ cursor: 'pointer', fontSize: '12px', color: 'var(--text-muted)', padding: '0 4px' }}>✕</span>
+                    </div>
+                  ) : (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 18px', cursor: 'pointer', border: '2px dashed var(--border)', borderRadius: 'var(--radius)', background: 'var(--bg-base)' }}>
+                      <svg width="22" height="22" viewBox="0 0 32 32" fill="none" stroke="var(--text-muted)" strokeWidth="1.5"><rect x="4" y="2" width="18" height="24" rx="2"/><path d="M18 2 L26 10 L22 10 L18 6 Z" fill="var(--bg-base)" stroke="var(--text-muted)"/><line x1="8" y1="14" x2="18" y2="14"/><line x1="8" y1="18" x2="16" y2="18"/></svg>
+                      <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>クリックしてPDFを選択</span>
+                      <input type="file" accept=".pdf,application/pdf" style={{ display: 'none' }} onChange={e => handleCheckPdfChange(e, item.setter)} />
+                    </label>
+                  )}
+                </div>
+              ))}
+
+              {/* 推薦文 テキスト */}
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>✉️ 推薦文（テキスト貼り付け）</label>
+                <textarea
+                  value={checkSuisenText}
+                  onChange={e => setCheckSuisenText(e.target.value)}
+                  placeholder="推薦文の内容をここに貼り付けてください..."
+                  style={{
+                    width: '100%', minHeight: '140px', padding: '12px', fontSize: '13px',
+                    border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+                    background: 'var(--bg-card)', color: 'var(--text-primary)',
+                    resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.6', boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <button onClick={handleCheck} disabled={checkLoading} style={{
+                  padding: '10px 28px', fontSize: '14px', fontWeight: 700,
+                  background: checkLoading ? 'var(--border)' : '#0891b2',
+                  color: '#fff', border: 'none', borderRadius: 'var(--radius)',
+                  cursor: checkLoading ? 'not-allowed' : 'pointer',
+                }}>
+                  {checkLoading ? '⏳ チェック中...' : '✅ AIチェック実行'}
+                </button>
+                {checkLoading && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Claude AIが確認中です（30〜60秒かかる場合があります）</span>}
+              </div>
+
+              {checkError && (
+                <div style={{ padding: '12px', background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: 'var(--radius)', fontSize: '13px', color: 'var(--danger)' }}>
+                  ⚠️ {checkError}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
@@ -3809,9 +3948,10 @@ function SuisenPrepPage() {
           {/* 右カラム：AI添削ツール */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-            {/* URLインプット（履歴書タブ）または PDFアップロード（他タブ） */}
+            {/* 入力エリア：履歴書=URL、職務経歴書=PDF+URL、推薦文=PDFアップロード */}
             <div>
               {subTab === 'resume' ? (
+                /* 履歴書：URL入力のみ */
                 <>
                   <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
                     履歴書URL <span style={{ color: 'var(--danger)' }}>*</span>
@@ -3829,6 +3969,54 @@ function SuisenPrepPage() {
                     }}
                   />
                   {resumeUrl.trim() && (
+                    <div style={{ marginTop: '8px', padding: '8px 12px', background: 'var(--success-bg)', border: '1px solid var(--success)', borderRadius: 'var(--radius-sm)' }}>
+                      <span style={{ fontSize: '13px', color: 'var(--success)', fontWeight: 600 }}>✅ URL入力済み</span>
+                    </div>
+                  )}
+                </>
+              ) : subTab === 'shokumu' ? (
+                /* 職務経歴書：完成済み履歴書PDF添付 + 職務経歴書URL */
+                <>
+                  {/* 完成済み履歴書PDF */}
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                    完成済み履歴書PDF <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>（任意）</span>
+                  </label>
+                  {shokumuResumePdf ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--success-bg)', border: '1px solid var(--success)', borderRadius: 'var(--radius-sm)', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '13px', color: 'var(--success)', fontWeight: 600 }}>✅ {shokumuResumePdf.name}</span>
+                      <span onClick={() => setShokumuResumePdf(null)} style={{ cursor: 'pointer', fontSize: '12px', color: 'var(--text-muted)', padding: '0 4px' }}>✕</span>
+                    </div>
+                  ) : (
+                    <label style={{
+                      display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 18px', cursor: 'pointer',
+                      border: '2px dashed var(--border)', borderRadius: 'var(--radius)',
+                      background: 'var(--bg-base)', marginBottom: '12px',
+                    }}>
+                      <svg width="22" height="22" viewBox="0 0 32 32" fill="none" stroke="var(--text-muted)" strokeWidth="1.5"><rect x="4" y="2" width="18" height="24" rx="2"/><path d="M18 2 L26 10 L22 10 L18 6 Z" fill="var(--bg-base)" stroke="var(--text-muted)"/><line x1="8" y1="14" x2="18" y2="14"/><line x1="8" y1="18" x2="16" y2="18"/></svg>
+                      <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>クリックして完成済み履歴書PDFを選択</span>
+                      <input type="file" accept=".pdf,application/pdf" style={{ display: 'none' }} onChange={async e => {
+                        const f = e.target.files[0]; if (!f) return;
+                        try { const base64 = await readFileAsBase64(f); setShokumuResumePdf({ name: f.name, base64 }); } catch(err) { setError('PDFの読み込みに失敗しました'); }
+                      }} />
+                    </label>
+                  )}
+                  {/* 職務経歴書URL */}
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                    職務経歴書URL（Google Drive） <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>（任意）</span>
+                  </label>
+                  <input
+                    type="url"
+                    value={shokumuUrl}
+                    onChange={e => setShokumuUrl(e.target.value)}
+                    placeholder="求職者から受領した職務経歴書のURLを入力してください"
+                    style={{
+                      width: '100%', padding: '10px 12px', fontSize: '13px',
+                      border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+                      background: 'var(--bg-base)', color: 'var(--text-primary)',
+                      outline: 'none', boxSizing: 'border-box',
+                    }}
+                  />
+                  {shokumuUrl.trim() && (
                     <div style={{ marginTop: '8px', padding: '8px 12px', background: 'var(--success-bg)', border: '1px solid var(--success)', borderRadius: 'var(--radius-sm)' }}>
                       <span style={{ fontSize: '13px', color: 'var(--success)', fontWeight: 600 }}>✅ URL入力済み</span>
                     </div>
@@ -3923,30 +4111,58 @@ function SuisenPrepPage() {
             )}
 
             {/* 結果表示 */}
-            {result && (
-              <div style={{ marginTop: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>✅ 生成結果</label>
-                  <button onClick={handleCopy} style={{
-                    padding: '5px 14px', fontSize: '12px', fontWeight: 600,
-                    background: copied ? 'var(--success)' : 'var(--bg-base)',
-                    color: copied ? '#fff' : 'var(--text-secondary)',
-                    border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+            {result && (() => {
+              // Google SheetsまたはDocsリンクを含む結果（履歴書・職務経歴書）はリンクカードで表示
+              const urlMatch = result.match(/https:\/\/docs\.google\.com\/[^\s]+/);
+              const isGoogleOutput = (subTab === 'resume' || subTab === 'shokumu') && urlMatch;
+              if (isGoogleOutput) {
+                const lines = result.split('\n').filter(l => !l.match(/^https:\/\//));
+                const googleUrl = urlMatch[0];
+                const isSheet = googleUrl.includes('/spreadsheets/');
+                return (
+                  <div style={{ marginTop: '8px', padding: '16px', background: 'var(--success-bg)', border: '1px solid var(--success)', borderRadius: 'var(--radius)' }}>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--success)', marginBottom: '10px' }}>
+                      {lines[0]}
+                    </div>
+                    {lines.slice(1).map((l, i) => l && <div key={i} style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>{l}</div>)}
+                    <a href={googleUrl} target="_blank" rel="noopener noreferrer"
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '12px',
+                        padding: '10px 20px', background: isSheet ? '#0f9d58' : '#4285f4',
+                        color: '#fff', borderRadius: 'var(--radius)', fontWeight: 700, fontSize: '14px',
+                        textDecoration: 'none',
+                      }}>
+                      {isSheet ? '📊 Googleスプレッドシートを開く' : '📄 Googleドキュメントを開く'}
+                    </a>
+                  </div>
+                );
+              }
+              // 推薦文などテキスト出力
+              return (
+                <div style={{ marginTop: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>✅ 生成結果</label>
+                    <button onClick={handleCopy} style={{
+                      padding: '5px 14px', fontSize: '12px', fontWeight: 600,
+                      background: copied ? 'var(--success)' : 'var(--bg-base)',
+                      color: copied ? '#fff' : 'var(--text-secondary)',
+                      border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                    }}>
+                      {copied ? '✅ コピー済み' : '📋 コピー'}
+                    </button>
+                  </div>
+                  <pre style={{
+                    whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                    padding: '16px', background: 'var(--bg-card)',
+                    border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+                    fontSize: '13px', lineHeight: '1.7', color: 'var(--text-primary)',
+                    maxHeight: '600px', overflowY: 'auto',
                   }}>
-                    {copied ? '✅ コピー済み' : '📋 コピー'}
-                  </button>
+                    {result}
+                  </pre>
                 </div>
-                <pre style={{
-                  whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                  padding: '16px', background: 'var(--bg-card)',
-                  border: '1px solid var(--border)', borderRadius: 'var(--radius)',
-                  fontSize: '13px', lineHeight: '1.7', color: 'var(--text-primary)',
-                  maxHeight: '600px', overflowY: 'auto',
-                }}>
-                  {result}
-                </pre>
-              </div>
-            )}
+              );
+            })()}
           </div>
         </div>
       )}
@@ -3954,10 +4170,189 @@ function SuisenPrepPage() {
   );
 }
 
+// ====== 新規求職者登録モーダル ======
+const MEDIA_OPTIONS = ['Indeed','doda','マイナビ転職','リクナビNEXT','Green','パーソル','その他'];
+const PREFECTURE_OPTIONS = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
+
+function NewCandidateModal({onClose, onSave}) {
+  const today = new Date().toISOString().slice(0,10);
+  const [form, setForm] = React.useState({
+    name:'', phone:'', age:'', gender:'男', prefecture:'東京都',
+    jobType:'', media:'Indeed', email:'', status:'面接設定',
+    firstContactDate:today, firstInterviewDate:'', memo:''
+  });
+  const [error, setError] = React.useState('');
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+  const handleSubmit = () => {
+    if (!form.name.trim()) { setError('氏名を入力してください'); return; }
+    if (!form.phone.trim()) { setError('電話番号を入力してください'); return; }
+    const todayISO = new Date().toISOString().slice(0,10);
+    const newCand = {
+      id: 'c' + Date.now(),
+      name: form.name.trim(),
+      phone: form.phone.trim(),
+      age: form.age ? parseInt(form.age) : null,
+      gender: form.gender,
+      prefecture: form.prefecture,
+      jobType: form.jobType.trim(),
+      media: form.media,
+      email: form.email.trim(),
+      status: form.status,
+      caStatus: form.status,
+      validStatus: '有効',
+      assignedCA: CA_MY_NAME,
+      assignedCS: '',
+      companyName: '',
+      createdAt: todayISO,
+      firstContactDate: form.firstContactDate || todayISO,
+      firstInterviewDate: form.firstInterviewDate || null,
+      memo: form.memo.trim(),
+      expectedRevenue: 0,
+      statusHistory: [{status: form.status, date: todayISO, ca: CA_MY_NAME, note:'新規登録'}],
+    };
+    try {
+      const stored = JSON.parse(localStorage.getItem('crm-candidates') || '[]');
+      stored.push(newCand);
+      localStorage.setItem('crm-candidates', JSON.stringify(stored));
+      window.dispatchEvent(new CustomEvent('crm-data-changed'));
+    } catch(e) { console.error(e); }
+    onSave(newCand);
+    onClose();
+  };
+  const fieldStyle = {width:'100%',padding:'7px 10px',border:'1px solid var(--border)',borderRadius:'var(--radius-sm)',fontSize:'14px',background:'var(--bg-base)',color:'var(--text-primary)',outline:'none',boxSizing:'border-box'};
+  const labelStyle = {fontSize:'12px',fontWeight:'600',color:'var(--text-secondary)',display:'block',marginBottom:'4px'};
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center'}} onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div style={{background:'var(--bg-card)',borderRadius:'var(--radius-lg)',padding:'28px',width:'520px',maxWidth:'95vw',maxHeight:'90vh',overflowY:'auto',boxShadow:'0 20px 60px rgba(0,0,0,0.25)'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'20px'}}>
+          <h3 style={{margin:0,fontSize:'17px',fontWeight:'700',color:'var(--text-primary)'}}>新規求職者登録</h3>
+          <button onClick={onClose} style={{background:'none',border:'none',fontSize:'20px',cursor:'pointer',color:'var(--text-muted)',lineHeight:1}}>×</button>
+        </div>
+        {error && <div style={{background:'var(--danger-bg)',color:'var(--danger)',padding:'8px 12px',borderRadius:'var(--radius-sm)',marginBottom:'14px',fontSize:'13px'}}>{error}</div>}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'14px'}}>
+          <div style={{gridColumn:'1/-1'}}>
+            <label style={labelStyle}>氏名 <span style={{color:'var(--danger)'}}>*</span></label>
+            <input style={fieldStyle} value={form.name} onChange={e=>set('name',e.target.value)} placeholder="山田 太郎" />
+          </div>
+          <div>
+            <label style={labelStyle}>電話番号 <span style={{color:'var(--danger)'}}>*</span></label>
+            <input style={fieldStyle} value={form.phone} onChange={e=>set('phone',e.target.value)} placeholder="09012345678" />
+          </div>
+          <div>
+            <label style={labelStyle}>メールアドレス</label>
+            <input style={fieldStyle} value={form.email} onChange={e=>set('email',e.target.value)} placeholder="example@email.com" type="email" />
+          </div>
+          <div>
+            <label style={labelStyle}>年齢</label>
+            <input style={fieldStyle} value={form.age} onChange={e=>set('age',e.target.value)} placeholder="30" type="number" min="18" max="70" />
+          </div>
+          <div>
+            <label style={labelStyle}>性別</label>
+            <select style={fieldStyle} value={form.gender} onChange={e=>set('gender',e.target.value)}>
+              {['男','女','その他'].map(g=><option key={g}>{g}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>都道府県</label>
+            <select style={fieldStyle} value={form.prefecture} onChange={e=>set('prefecture',e.target.value)}>
+              {PREFECTURE_OPTIONS.map(p=><option key={p}>{p}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>流入媒体</label>
+            <select style={fieldStyle} value={form.media} onChange={e=>set('media',e.target.value)}>
+              {MEDIA_OPTIONS.map(m=><option key={m}>{m}</option>)}
+            </select>
+          </div>
+          <div style={{gridColumn:'1/-1'}}>
+            <label style={labelStyle}>職種</label>
+            <input style={fieldStyle} value={form.jobType} onChange={e=>set('jobType',e.target.value)} placeholder="営業・ITエンジニア など" />
+          </div>
+          <div>
+            <label style={labelStyle}>初回接触日</label>
+            <input style={fieldStyle} value={form.firstContactDate} onChange={e=>set('firstContactDate',e.target.value)} type="date" />
+          </div>
+          <div>
+            <label style={labelStyle}>初回面接日</label>
+            <input style={fieldStyle} value={form.firstInterviewDate} onChange={e=>set('firstInterviewDate',e.target.value)} type="date" />
+          </div>
+          <div>
+            <label style={labelStyle}>初期ステータス</label>
+            <select style={fieldStyle} value={form.status} onChange={e=>set('status',e.target.value)}>
+              {STATUS_OPTIONS.map(s=><option key={s}>{s}</option>)}
+            </select>
+          </div>
+          <div style={{gridColumn:'1/-1'}}>
+            <label style={labelStyle}>メモ</label>
+            <textarea style={{...fieldStyle,minHeight:'72px',resize:'vertical'}} value={form.memo} onChange={e=>set('memo',e.target.value)} placeholder="特記事項があれば入力..." />
+          </div>
+        </div>
+        <div style={{display:'flex',gap:'10px',justifyContent:'flex-end',marginTop:'20px'}}>
+          <button onClick={onClose} style={{padding:'8px 20px',borderRadius:'var(--radius-sm)',border:'1px solid var(--border)',background:'var(--bg-base)',color:'var(--text-secondary)',cursor:'pointer',fontSize:'14px'}}>キャンセル</button>
+          <button onClick={handleSubmit} style={{padding:'8px 24px',borderRadius:'var(--radius-sm)',border:'none',background:'var(--accent)',color:'#fff',cursor:'pointer',fontSize:'14px',fontWeight:'600'}}>登録する</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ====== CSV EXPORT ======
+function exportCandidatesCSV() {
+  const cands = JSON.parse(localStorage.getItem('crm-candidates') || '[]');
+  const cols = [
+    {key:'id',label:'ID'},
+    {key:'name',label:'氏名'},
+    {key:'age',label:'年齢'},
+    {key:'gender',label:'性別'},
+    {key:'phone',label:'電話番号'},
+    {key:'email',label:'メール'},
+    {key:'prefecture',label:'都道府県'},
+    {key:'jobType',label:'職種'},
+    {key:'media',label:'媒体'},
+    {key:'assignedCA',label:'担当CA'},
+    {key:'assignedCS',label:'担当CS'},
+    {key:'status',label:'ステータス'},
+    {key:'validStatus',label:'有効/無効'},
+    {key:'companyName',label:'企業名'},
+    {key:'createdAt',label:'登録日'},
+    {key:'firstContactDate',label:'初回接触日'},
+    {key:'firstInterviewDate',label:'初回面接日'},
+    {key:'bridgeDate',label:'ブリッジ日'},
+    {key:'bridgeResult',label:'ブリッジ結果'},
+    {key:'recommendationDate',label:'推薦日'},
+    {key:'companyInterviewDate',label:'企業面接日'},
+    {key:'expectedRevenue',label:'想定売上'},
+    {key:'memo',label:'メモ'},
+  ];
+  const esc = v => {
+    if (v === null || v === undefined) return '';
+    const s = String(v);
+    if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  };
+  const header = cols.map(c => c.label).join(',');
+  const rows = cands.map(c => cols.map(col => esc(c[col.key])).join(','));
+  const csv = '﻿' + [header, ...rows].join('\r\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const now = new Date();
+  const ts = now.getFullYear() + ('0'+(now.getMonth()+1)).slice(-2) + ('0'+now.getDate()).slice(-2);
+  a.href = url;
+  a.download = 'crm_candidates_' + ts + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 // ====== MAIN APP ======
 function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem('crm-theme') || 'minimal-light');
   const [page, setPage] = useState('summary');
+  const [showNewCandidate, setShowNewCandidate] = useState(false);
   // 月選択オプション（過去12ヶ月〜翌月）
   const periodOptions = useMemo(() => {
     const opts = [];
@@ -4000,6 +4395,7 @@ function App() {
   const pageTitle = NAV_ITEMS.find(n => n.id === page)?.label || 'サマリー';
 
   return (
+    <React.Fragment>
     <div className="app-layout">
       <aside className="sidebar">
         <div className="sidebar-logo">
@@ -4046,6 +4442,20 @@ function App() {
             </select>
           </div>
           <div className="topbar-right">
+            <button onClick={() => setShowNewCandidate(true)} style={{
+              fontSize:'13px',padding:'5px 14px',borderRadius:'var(--radius-sm)',
+              border:'none',background:'var(--accent)',color:'#fff',
+              cursor:'pointer',display:'flex',alignItems:'center',gap:'4px',fontWeight:'600'
+            }} title="新規求職者を登録">
+              ＋ 新規登録
+            </button>
+            <button onClick={() => exportCandidatesCSV()} style={{
+              fontSize:'13px',padding:'5px 12px',borderRadius:'var(--radius-sm)',
+              border:'1px solid var(--border)',background:'var(--bg-base)',
+              color:'var(--text-secondary)',cursor:'pointer',display:'flex',alignItems:'center',gap:'4px'
+            }} title="候補者データをCSVでダウンロード">
+              ⬇ CSV
+            </button>
             <ThemeSwitcher theme={theme} setTheme={setTheme} />
             <CASwitcher />
           </div>
@@ -4055,6 +4465,13 @@ function App() {
         </div>
       </div>
     </div>
+    {showNewCandidate && (
+      <NewCandidateModal
+        onClose={() => setShowNewCandidate(false)}
+        onSave={(c) => { setPage('candidates'); }}
+      />
+    )}
+    </React.Fragment>
   );
 }
 
@@ -4062,6 +4479,7 @@ function App() {
 // ====== ROOT ======
 function Root() {
   const [ready, setReady] = React.useState(false);
+  const [fsKey, setFsKey] = React.useState(0); // Firestoreリアルタイム更新カウンタ
   React.useEffect(() => {
     async function init() {
       // ① まずFirestoreから最新データを取得（別デバイスの変更も反映）
@@ -4069,13 +4487,18 @@ function Root() {
         try { await window.__syncFromFirestore(); }
         catch(e) { console.warn('[Firestore] 初期同期失敗:', e); }
       }
-
       setReady(true);
+      // ② リアルタイムリスナー開始（他のCAが更新したら自動再描画）
+      if (window.__startFirestoreListener) {
+        window.__startFirestoreListener(function() {
+          setFsKey(function(k) { return k + 1; });
+        });
+      }
     }
     init();
   }, []);
   if (!ready) return <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'18px',color:'#6b7280'}}>読み込み中...</div>;
-  return <App />;
+  return <App key={fsKey} />;
 }
 ReactDOM.createRoot(document.getElementById('root')).render(<Root />);
 
