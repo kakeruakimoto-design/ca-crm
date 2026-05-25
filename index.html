@@ -1453,26 +1453,24 @@ function _calcRealMetrics(candidates, period) {
       }).length
     : candidates.filter(c => !!c.offerDate).length;
 
-  // 承諾: crm-accepted の acceptedAt がこの月
+  // 承諾: crm-candidates の status='承諾' の候補者をカウント（CA自身の担当のみ）
   let aAC = 0;
   let aCO_AC = 0;
   try {
-    const _allAcc = JSON.parse(localStorage.getItem('crm-accepted') || '[]');
-    const myAcc = _allAcc.filter(a => a.assignedCA === CA_MY_NAME);
+    const _accCands = candidates.filter(c => (c.status === '承諾' || c.caStatus === '承諾'));
     if (pk) {
-      const thisAcc = myAcc.filter(a => {
-        const ad = (a.acceptedAt||'').slice(0,10);
+      const thisAcc = _accCands.filter(c => {
+        const ad = (c.acceptedAt || c.offerDate || '').slice(0, 10);
         return ad.startsWith(pk) && ad <= _todayStr;
       });
       aAC = thisAcc.length;
       // 持ち越し承諾: 今月承諾 AND firstInterviewDate が前月以前
-      aCO_AC = thisAcc.filter(a => {
-        const cand = candidates.find(c => c.id === a.id);
-        const fid = (cand?.firstInterviewDate || '').slice(0, 7);
+      aCO_AC = thisAcc.filter(c => {
+        const fid = (c.firstInterviewDate || '').slice(0, 7);
         return fid && fid < pk;
       }).length;
     } else {
-      aAC = myAcc.length;
+      aAC = _accCands.length;
     }
   } catch {}
 
@@ -2172,6 +2170,7 @@ function CandidatesPage() {
       if (st === '推薦'         && !c.recommendationDate)  { extra.recommendationDate = todayISO; }
       if (st === '企業面接'     && !c.companyInterviewDate){ extra.companyInterviewDate = todayISO; }
       if (st === '内定'         && !c.offerDate)           { extra.offerDate = todayISO; }
+      if (st === '承諾'         && !c.acceptedAt)          { extra.acceptedAt = todayISO; }
       return extra;
     };
     const addHistory = (c, newSt) => {
@@ -2192,6 +2191,29 @@ function CandidatesPage() {
         return {...c, status: newStatus, caStatus: newStatus, ...autoDateFields(c, newStatus), statusHistory: addHistory(c, newStatus)};
       });
       localStorage.setItem('crm-candidates', JSON.stringify(merged));
+      // 承諾ステータスに変更したとき crm-accepted へ自動追加（重複なし）
+      if (newStatus === '承諾') {
+        try {
+          const acc = JSON.parse(localStorage.getItem('crm-accepted') || '[]');
+          const cand = merged.find(x => x.id === id) || {};
+          if (!acc.find(a => a.id === id)) {
+            const todayAcc = new Date().toISOString().slice(0, 10);
+            acc.push({
+              id,
+              name: cand.name || '',
+              age: cand.age || null,
+              assignedCA: cand.assignedCA || CA_MY_NAME,
+              companyName: cand.companyName || '',
+              acceptedAt: todayAcc,
+              acceptanceDate: todayAcc,
+              contractAmount: '',
+              result: '承諾',
+              joiningDate: '',
+            });
+            localStorage.setItem('crm-accepted', JSON.stringify(acc));
+          }
+        } catch {}
+      }
       window.dispatchEvent(new CustomEvent('crm-data-changed'));
     } catch {}
   };
@@ -4065,7 +4087,7 @@ function NewCandidateModal({onClose, onSave}) {
           </div>
           <div>
             <label style={labelStyle}>電話番号 <span style={{color:'var(--danger)'}}>*</span></label>
-            <input style={fieldStyle} value={form.phone} onChange={e=>set('phone',e.target.value)} placeholder="090-1234-5678" />
+            <input style={fieldStyle} value={form.phone} onChange={e=>set('phone',e.target.value)} placeholder="09012345678" />
           </div>
           <div>
             <label style={labelStyle}>メールアドレス</label>
