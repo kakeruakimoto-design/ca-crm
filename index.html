@@ -3592,9 +3592,11 @@ function readFileAsBase64(file) {
 function SuisenPrepPage() {
   const [subTab, setSubTab] = React.useState('resume');
   const [pdfFiles, setPdfFiles] = React.useState([]);
-  const [resumeUrl, setResumeUrl] = React.useState('');   // 履歴書タブ用URL
-  const [shokumuUrl, setShokumuUrl] = React.useState(''); // 職務経歴書タブ用URL
+  const [resumeUrl, setResumeUrl] = React.useState('');            // 履歴書タブ用URL
+  const [shokumuUrl, setShokumuUrl] = React.useState('');          // 職務経歴書タブ用URL（求職者提供）
+  const [shokumuResumePdf, setShokumuResumePdf] = React.useState(null); // 職務経歴書タブ用：完成済み履歴書PDF
   const [additionalInfo, setAdditionalInfo] = React.useState('');
+  const CA_NAME = localStorage.getItem('crm-my-name') || '';
   const [result, setResult] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
@@ -3624,8 +3626,8 @@ function SuisenPrepPage() {
   };
 
   const CONFIG = {
-    resume:  { multiple: false, label: '履歴書PDF', hint: '履歴書PDFを1枚選択してください', addLabel: '追加情報・注意点（任意）', addPlaceholder: '例：エンジニア職への転職希望', addHeight: '80px', btnLabel: '履歴書を添削', btnColor: 'var(--success)' },
-    shokumu: { multiple: false, label: '職務経歴書PDF', hint: '職務経歴書PDFを1枚選択してください', addLabel: '追加情報・注意点（任意）', addPlaceholder: '例：IT未経験からのキャリアチェンジ', addHeight: '80px', btnLabel: '職務経歴書を添削', btnColor: '#7c3aed' },
+    resume:  { multiple: false, label: '履歴書PDF', hint: '履歴書PDFを1枚選択してください', addLabel: '追加情報・注意点（任意）', addPlaceholder: '例：エンジニア職への転職希望', addHeight: '80px', btnLabel: '履歴書を作成', btnColor: 'var(--success)' },
+    shokumu: { multiple: false, label: '職務経歴書PDF', hint: '職務経歴書PDFを1枚選択してください', addLabel: '追加情報・注意点（任意）', addPlaceholder: '例：IT未経験からのキャリアチェンジ', addHeight: '80px', btnLabel: '職務経歴書を作成', btnColor: '#7c3aed' },
     suisen:  { multiple: true,  label: '履歴書・職務経歴書PDF', hint: '複数可（履歴書＋職務経歴書を同時に添付できます）', addLabel: '手入力情報（年収・就業可能時期・紹介先企業名など）', addPlaceholder: '現年収：〇〇万円\n希望年収：〇〇万円\n就業可能時期：〇〇\n現職の雇用形態：正社員 / 離職中\n自家用車の有無：有 / 無\n既往歴の有無：なし\n犯罪歴の有無：なし\n希望勤務地：〇〇\n出張に関して：可\n転居に関して：不可\n\n紹介先企業名：\n①\n②\n③\n\n希望選考方法：対面 / オンライン\n\n面接候補日：自己記入', addHeight: '180px', btnLabel: '推薦文を生成', btnColor: 'var(--accent)' },
   };
 
@@ -3649,16 +3651,16 @@ function SuisenPrepPage() {
     if (subTab === 'resume') {
       if (!resumeUrl.trim()) { setError('履歴書のURLを入力してください。'); return; }
     } else if (subTab === 'shokumu') {
-      if (!shokumuUrl.trim()) { setError('職務経歴書のURLを入力してください。'); return; }
+      if (!shokumuResumePdf && !shokumuUrl.trim()) { setError('完成済み履歴書PDFを添付するか、職務経歴書のURLを入力してください。'); return; }
     } else {
       if (pdfFiles.length === 0) { setError('PDFを選択してください。'); return; }
     }
     setLoading(true); setError(''); setResult(''); setCopied(false);
     try {
       const body = subTab === 'resume'
-        ? { type: 'resume', resumeUrl: resumeUrl.trim(), additionalInfo }
+        ? { type: 'resume', resumeUrl: resumeUrl.trim(), caName: CA_NAME, additionalInfo }
         : subTab === 'shokumu'
-        ? { type: 'shokumu', shokumuUrl: shokumuUrl.trim(), additionalInfo }
+        ? { type: 'shokumu', shokumuUrl: shokumuUrl.trim(), resumePdfBase64: shokumuResumePdf ? shokumuResumePdf.base64 : null, caName: CA_NAME, additionalInfo }
         : { type: subTab, pdfFiles, additionalInfo };
       const res = await fetch(`${RAILWAY_API}/api/suisen-prep`, {
         method: 'POST',
@@ -3881,18 +3883,19 @@ function SuisenPrepPage() {
           {/* 右カラム：AI添削ツール */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-            {/* URLインプット（履歴書・職務経歴書タブ）または PDFアップロード（他タブ） */}
+            {/* 入力エリア：履歴書=URL、職務経歴書=PDF+URL、推薦文=PDFアップロード */}
             <div>
-              {(subTab === 'resume' || subTab === 'shokumu') ? (
+              {subTab === 'resume' ? (
+                /* 履歴書：URL入力のみ */
                 <>
                   <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                    {subTab === 'resume' ? '履歴書URL' : '職務経歴書URL'} <span style={{ color: 'var(--danger)' }}>*</span>
+                    履歴書URL <span style={{ color: 'var(--danger)' }}>*</span>
                   </label>
                   <input
                     type="url"
-                    value={subTab === 'resume' ? resumeUrl : shokumuUrl}
-                    onChange={e => subTab === 'resume' ? setResumeUrl(e.target.value) : setShokumuUrl(e.target.value)}
-                    placeholder={subTab === 'resume' ? '求職者から受領した履歴書のURLを入力してください' : '求職者から受領した職務経歴書のURLを入力してください'}
+                    value={resumeUrl}
+                    onChange={e => setResumeUrl(e.target.value)}
+                    placeholder="求職者から受領した履歴書のURLを入力してください"
                     style={{
                       width: '100%', padding: '10px 12px', fontSize: '13px',
                       border: '1px solid var(--border)', borderRadius: 'var(--radius)',
@@ -3900,7 +3903,55 @@ function SuisenPrepPage() {
                       outline: 'none', boxSizing: 'border-box',
                     }}
                   />
-                  {(subTab === 'resume' ? resumeUrl : shokumuUrl).trim() && (
+                  {resumeUrl.trim() && (
+                    <div style={{ marginTop: '8px', padding: '8px 12px', background: 'var(--success-bg)', border: '1px solid var(--success)', borderRadius: 'var(--radius-sm)' }}>
+                      <span style={{ fontSize: '13px', color: 'var(--success)', fontWeight: 600 }}>✅ URL入力済み</span>
+                    </div>
+                  )}
+                </>
+              ) : subTab === 'shokumu' ? (
+                /* 職務経歴書：完成済み履歴書PDF添付 + 職務経歴書URL */
+                <>
+                  {/* 完成済み履歴書PDF */}
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                    完成済み履歴書PDF <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>（任意）</span>
+                  </label>
+                  {shokumuResumePdf ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--success-bg)', border: '1px solid var(--success)', borderRadius: 'var(--radius-sm)', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '13px', color: 'var(--success)', fontWeight: 600 }}>✅ {shokumuResumePdf.name}</span>
+                      <span onClick={() => setShokumuResumePdf(null)} style={{ cursor: 'pointer', fontSize: '12px', color: 'var(--text-muted)', padding: '0 4px' }}>✕</span>
+                    </div>
+                  ) : (
+                    <label style={{
+                      display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 18px', cursor: 'pointer',
+                      border: '2px dashed var(--border)', borderRadius: 'var(--radius)',
+                      background: 'var(--bg-base)', marginBottom: '12px',
+                    }}>
+                      <svg width="22" height="22" viewBox="0 0 32 32" fill="none" stroke="var(--text-muted)" strokeWidth="1.5"><rect x="4" y="2" width="18" height="24" rx="2"/><path d="M18 2 L26 10 L22 10 L18 6 Z" fill="var(--bg-base)" stroke="var(--text-muted)"/><line x1="8" y1="14" x2="18" y2="14"/><line x1="8" y1="18" x2="16" y2="18"/></svg>
+                      <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>クリックして完成済み履歴書PDFを選択</span>
+                      <input type="file" accept=".pdf,application/pdf" style={{ display: 'none' }} onChange={async e => {
+                        const f = e.target.files[0]; if (!f) return;
+                        try { const base64 = await readFileAsBase64(f); setShokumuResumePdf({ name: f.name, base64 }); } catch(err) { setError('PDFの読み込みに失敗しました'); }
+                      }} />
+                    </label>
+                  )}
+                  {/* 職務経歴書URL */}
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                    職務経歴書URL（Google Drive） <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>（任意）</span>
+                  </label>
+                  <input
+                    type="url"
+                    value={shokumuUrl}
+                    onChange={e => setShokumuUrl(e.target.value)}
+                    placeholder="求職者から受領した職務経歴書のURLを入力してください"
+                    style={{
+                      width: '100%', padding: '10px 12px', fontSize: '13px',
+                      border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+                      background: 'var(--bg-base)', color: 'var(--text-primary)',
+                      outline: 'none', boxSizing: 'border-box',
+                    }}
+                  />
+                  {shokumuUrl.trim() && (
                     <div style={{ marginTop: '8px', padding: '8px 12px', background: 'var(--success-bg)', border: '1px solid var(--success)', borderRadius: 'var(--radius-sm)' }}>
                       <span style={{ fontSize: '13px', color: 'var(--success)', fontWeight: 600 }}>✅ URL入力済み</span>
                     </div>
@@ -3995,30 +4046,58 @@ function SuisenPrepPage() {
             )}
 
             {/* 結果表示 */}
-            {result && (
-              <div style={{ marginTop: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>✅ 生成結果</label>
-                  <button onClick={handleCopy} style={{
-                    padding: '5px 14px', fontSize: '12px', fontWeight: 600,
-                    background: copied ? 'var(--success)' : 'var(--bg-base)',
-                    color: copied ? '#fff' : 'var(--text-secondary)',
-                    border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+            {result && (() => {
+              // Google SheetsまたはDocsリンクを含む結果（履歴書・職務経歴書）はリンクカードで表示
+              const urlMatch = result.match(/https:\/\/docs\.google\.com\/[^\s]+/);
+              const isGoogleOutput = (subTab === 'resume' || subTab === 'shokumu') && urlMatch;
+              if (isGoogleOutput) {
+                const lines = result.split('\n').filter(l => !l.match(/^https:\/\//));
+                const googleUrl = urlMatch[0];
+                const isSheet = googleUrl.includes('/spreadsheets/');
+                return (
+                  <div style={{ marginTop: '8px', padding: '16px', background: 'var(--success-bg)', border: '1px solid var(--success)', borderRadius: 'var(--radius)' }}>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--success)', marginBottom: '10px' }}>
+                      {lines[0]}
+                    </div>
+                    {lines.slice(1).map((l, i) => l && <div key={i} style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>{l}</div>)}
+                    <a href={googleUrl} target="_blank" rel="noopener noreferrer"
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '12px',
+                        padding: '10px 20px', background: isSheet ? '#0f9d58' : '#4285f4',
+                        color: '#fff', borderRadius: 'var(--radius)', fontWeight: 700, fontSize: '14px',
+                        textDecoration: 'none',
+                      }}>
+                      {isSheet ? '📊 Googleスプレッドシートを開く' : '📄 Googleドキュメントを開く'}
+                    </a>
+                  </div>
+                );
+              }
+              // 推薦文などテキスト出力
+              return (
+                <div style={{ marginTop: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>✅ 生成結果</label>
+                    <button onClick={handleCopy} style={{
+                      padding: '5px 14px', fontSize: '12px', fontWeight: 600,
+                      background: copied ? 'var(--success)' : 'var(--bg-base)',
+                      color: copied ? '#fff' : 'var(--text-secondary)',
+                      border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                    }}>
+                      {copied ? '✅ コピー済み' : '📋 コピー'}
+                    </button>
+                  </div>
+                  <pre style={{
+                    whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                    padding: '16px', background: 'var(--bg-card)',
+                    border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+                    fontSize: '13px', lineHeight: '1.7', color: 'var(--text-primary)',
+                    maxHeight: '600px', overflowY: 'auto',
                   }}>
-                    {copied ? '✅ コピー済み' : '📋 コピー'}
-                  </button>
+                    {result}
+                  </pre>
                 </div>
-                <pre style={{
-                  whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                  padding: '16px', background: 'var(--bg-card)',
-                  border: '1px solid var(--border)', borderRadius: 'var(--radius)',
-                  fontSize: '13px', lineHeight: '1.7', color: 'var(--text-primary)',
-                  maxHeight: '600px', overflowY: 'auto',
-                }}>
-                  {result}
-                </pre>
-              </div>
-            )}
+              );
+            })()}
           </div>
         </div>
       )}
