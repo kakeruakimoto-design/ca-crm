@@ -3592,7 +3592,8 @@ function readFileAsBase64(file) {
 function SuisenPrepPage() {
   const [subTab, setSubTab] = React.useState('resume');
   const [pdfFiles, setPdfFiles] = React.useState([]);
-  const [resumeUrl, setResumeUrl] = React.useState('');  // 履歴書タブ用URL
+  const [resumeUrl, setResumeUrl] = React.useState('');   // 履歴書タブ用URL
+  const [shokumuUrl, setShokumuUrl] = React.useState(''); // 職務経歴書タブ用URL
   const [additionalInfo, setAdditionalInfo] = React.useState('');
   const [result, setResult] = React.useState('');
   const [loading, setLoading] = React.useState(false);
@@ -3647,6 +3648,8 @@ function SuisenPrepPage() {
   const handleRun = async () => {
     if (subTab === 'resume') {
       if (!resumeUrl.trim()) { setError('履歴書のURLを入力してください。'); return; }
+    } else if (subTab === 'shokumu') {
+      if (!shokumuUrl.trim()) { setError('職務経歴書のURLを入力してください。'); return; }
     } else {
       if (pdfFiles.length === 0) { setError('PDFを選択してください。'); return; }
     }
@@ -3654,6 +3657,8 @@ function SuisenPrepPage() {
     try {
       const body = subTab === 'resume'
         ? { type: 'resume', resumeUrl: resumeUrl.trim(), additionalInfo }
+        : subTab === 'shokumu'
+        ? { type: 'shokumu', shokumuUrl: shokumuUrl.trim(), additionalInfo }
         : { type: subTab, pdfFiles, additionalInfo };
       const res = await fetch(`${RAILWAY_API}/api/suisen-prep`, {
         method: 'POST',
@@ -3876,18 +3881,18 @@ function SuisenPrepPage() {
           {/* 右カラム：AI添削ツール */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-            {/* URLインプット（履歴書タブ）または PDFアップロード（他タブ） */}
+            {/* URLインプット（履歴書・職務経歴書タブ）または PDFアップロード（他タブ） */}
             <div>
-              {subTab === 'resume' ? (
+              {(subTab === 'resume' || subTab === 'shokumu') ? (
                 <>
                   <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                    履歴書URL <span style={{ color: 'var(--danger)' }}>*</span>
+                    {subTab === 'resume' ? '履歴書URL' : '職務経歴書URL'} <span style={{ color: 'var(--danger)' }}>*</span>
                   </label>
                   <input
                     type="url"
-                    value={resumeUrl}
-                    onChange={e => setResumeUrl(e.target.value)}
-                    placeholder="求職者から受領した履歴書のURLを入力してください"
+                    value={subTab === 'resume' ? resumeUrl : shokumuUrl}
+                    onChange={e => subTab === 'resume' ? setResumeUrl(e.target.value) : setShokumuUrl(e.target.value)}
+                    placeholder={subTab === 'resume' ? '求職者から受領した履歴書のURLを入力してください' : '求職者から受領した職務経歴書のURLを入力してください'}
                     style={{
                       width: '100%', padding: '10px 12px', fontSize: '13px',
                       border: '1px solid var(--border)', borderRadius: 'var(--radius)',
@@ -3895,7 +3900,7 @@ function SuisenPrepPage() {
                       outline: 'none', boxSizing: 'border-box',
                     }}
                   />
-                  {resumeUrl.trim() && (
+                  {(subTab === 'resume' ? resumeUrl : shokumuUrl).trim() && (
                     <div style={{ marginTop: '8px', padding: '8px 12px', background: 'var(--success-bg)', border: '1px solid var(--success)', borderRadius: 'var(--radius-sm)' }}>
                       <span style={{ fontSize: '13px', color: 'var(--success)', fontWeight: 600 }}>✅ URL入力済み</span>
                     </div>
