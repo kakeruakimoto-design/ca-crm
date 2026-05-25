@@ -2211,10 +2211,12 @@ function CSVImportModal({ onImport, onClose, existingCands }) {
   );
 }
 
-// 有効判定：男性39歳以下、女性30歳未満
+// 有効判定：男性39歳以下、女性30歳未満（'男'/'男性'・'女'/'女性' 両対応）
 const isValidCandidate = c => {
-  if (c.gender === '男性') return c.age <= 39;
-  if (c.gender === '女性') return c.age < 30;
+  const age = parseInt(c.age) || 0;
+  const g = c.gender || '';
+  if (g === '男性' || g === '男') return age <= 39;
+  if (g === '女性' || g === '女') return age < 30;
   return false;
 };
 
@@ -2943,7 +2945,7 @@ function AdminEditModal({candidate, onClose, onSave}) {
     name: candidate.name || '',
     phone: candidate.phone || '',
     age: candidate.age || '',
-    gender: candidate.gender || '男',
+    gender: (() => { const g = candidate.gender || ''; return g === '男' ? '男性' : g === '女' ? '女性' : g || '男性'; })(),
     prefecture: candidate.prefecture || '東京都',
     jobType: candidate.jobType || '',
     media: candidate.media || 'Indeed',
@@ -2992,7 +2994,7 @@ function AdminEditModal({candidate, onClose, onSave}) {
           <div><label style={ls}>年齢</label><input style={fs} value={form.age} onChange={e=>set('age',e.target.value)} type="number" /></div>
           <div><label style={ls}>性別</label>
             <select style={fs} value={form.gender} onChange={e=>set('gender',e.target.value)}>
-              {['男','女','その他'].map(g=><option key={g}>{g}</option>)}
+              {['男性','女性','その他'].map(g=><option key={g}>{g}</option>)}
             </select>
           </div>
           <div><label style={ls}>都道府県</label>
