@@ -2696,6 +2696,11 @@ function InterviewsPage() {
   };
   const updateCompany = (cid, idx, field, value) => {
     const arr = [...(plans[cid] || [])];
+    if (typeof field === 'object') {
+      arr[idx] = { ...arr[idx], ...field };
+      savePlans({ ...plans, [cid]: arr });
+      return;
+    }
     arr[idx] = { ...arr[idx], [field]: value };
     savePlans({ ...plans, [cid]: arr });
     if (field === 'selectionStatus') {
@@ -2830,8 +2835,8 @@ function InterviewsPage() {
                     <tbody>
                       {companyList.map((cp, idx) => {
                         const rs = getRowStyle(cp.selectionStatus);
-                        const isCustomCompany = cp.company && !COMPANY_PRESETS.includes(cp.company);
-                        const isCustomJobType = cp.jobType && !JOB_TYPE_PRESETS.includes(cp.jobType);
+                        const isCustomCompany = cp.customCompany || (cp.company && !COMPANY_PRESETS.includes(cp.company));
+                        const isCustomJobType = cp.customJobType || (cp.jobType && !JOB_TYPE_PRESETS.includes(cp.jobType));
                         return (
                           <tr key={idx} style={{background:rs.bg,borderBottom:'1px solid var(--border-light)',opacity:rs.opacity}}>
                             <td style={{padding:'6px 10px',color:'var(--text-muted)',textAlign:'center',fontWeight:'600'}}>{idx+1}</td>
@@ -2839,9 +2844,9 @@ function InterviewsPage() {
                               <select value={isCustomCompany ? '自己記入' : (cp.company || '')}
                                 onChange={e => {
                                   if (e.target.value === '自己記入') {
-                                    updateCompany(c.id, idx, 'company', '');
+                                    updateCompany(c.id, idx, { company: '', customCompany: true });
                                   } else {
-                                    updateCompany(c.id, idx, 'company', e.target.value);
+                                    updateCompany(c.id, idx, { company: e.target.value, customCompany: false });
                                   }
                                 }}
                                 style={{border:'1px solid var(--border)',borderRadius:'4px',padding:'3px 6px',fontSize:'14px',background:rs.bg,color:rs.color,width:'100%',marginBottom: isCustomCompany ? '4px' : '0'}}>
@@ -2859,9 +2864,9 @@ function InterviewsPage() {
                               <select value={isCustomJobType ? '自己記入' : (cp.jobType || '')}
                                 onChange={e => {
                                   if (e.target.value === '自己記入') {
-                                    updateCompany(c.id, idx, 'jobType', '');
+                                    updateCompany(c.id, idx, { jobType: '', customJobType: true });
                                   } else {
-                                    updateCompany(c.id, idx, 'jobType', e.target.value);
+                                    updateCompany(c.id, idx, { jobType: e.target.value, customJobType: false });
                                   }
                                 }}
                                 style={{border:'1px solid var(--border)',borderRadius:'4px',padding:'3px 6px',fontSize:'14px',background:rs.bg,color:rs.color,width:'100%',marginBottom: isCustomJobType ? '4px' : '0'}}>
