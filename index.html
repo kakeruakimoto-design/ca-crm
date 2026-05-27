@@ -2262,7 +2262,7 @@ function CandidatesPage() {
                   <td style={{fontVariantNumeric:'tabular-nums', whiteSpace:'nowrap', textAlign:'center', color:'var(--text-secondary)', fontSize:'13px'}}>
                     {fmtMD(c.createdAt) || '—'}
                   </td>
-                  {/* 初回面接日 */}
+                  {/* 初回面接日（編集可能） */}
                   <td style={{fontVariantNumeric:'tabular-nums', whiteSpace:'nowrap', textAlign:'center'}}>
                     {(() => {
                       const d = (c.firstInterviewDate || '').slice(0, 10);
@@ -2270,10 +2270,21 @@ function CandidatesPage() {
                       const isInterviewSet = (c.status === '面接設定' || c.status === '初回面接');
                       const warn = isPast && isInterviewSet;
                       return (
-                        <span style={{color: warn ? 'var(--danger)' : 'var(--text-secondary)', fontWeight: warn ? '700' : 'normal'}}>
-                          {warn && <span title="面接設定のまま日程が過ぎています" style={{marginRight:'3px'}}>⚠️</span>}
-                          {fmtMD(c.firstInterviewDate)}
-                        </span>
+                        <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'3px'}}>
+                          {warn && <span title="面接設定のまま日程が過ぎています" style={{color:'var(--danger)',fontWeight:'700'}}>⚠️</span>}
+                          <input
+                            type="date"
+                            value={d}
+                            onChange={e => handleInlineField(c.id, 'firstInterviewDate', e.target.value)}
+                            style={{
+                              border:'1px solid var(--border)',borderRadius:'4px',padding:'2px 4px',
+                              fontSize:'13px',background:'var(--bg-base)',
+                              color: warn ? 'var(--danger)' : 'var(--text-primary)',
+                              fontWeight: warn ? '700' : 'normal',
+                              width:'110px',
+                            }}
+                          />
+                        </div>
                       );
                     })()}
                   </td>
@@ -2773,6 +2784,7 @@ function InterviewsPage() {
                         <th style={{padding:'6px 10px',textAlign:'left',fontWeight:'600',color:'var(--text-secondary)',width:'110px',whiteSpace:'nowrap'}}>職種</th>
                         <th style={{padding:'6px 10px',textAlign:'left',fontWeight:'600',color:'var(--text-secondary)',width:'170px',whiteSpace:'nowrap'}}>面接日程</th>
                         <th style={{padding:'6px 10px',textAlign:'center',fontWeight:'600',color:'var(--text-secondary)',width:'70px',whiteSpace:'nowrap'}}>確定返信</th>
+                        <th style={{padding:'6px 10px',textAlign:'center',fontWeight:'600',color:'var(--text-secondary)',width:'140px',whiteSpace:'nowrap'}} title="履歴書・職務経歴書・推薦文の提出状況">提出物</th>
                         <th style={{padding:'6px 10px',textAlign:'left',fontWeight:'600',color:'var(--text-secondary)',width:'160px',whiteSpace:'nowrap'}}>選考ステータス</th>
                         <th style={{padding:'6px 10px',textAlign:'left',fontWeight:'600',color:'var(--text-secondary)',width:'120px',whiteSpace:'nowrap'}}>承諾期限</th>
                         <th style={{padding:'6px 10px',width:'48px'}}></th>
@@ -2846,6 +2858,28 @@ function InterviewsPage() {
                                   style={{width:'16px',height:'16px',cursor:'pointer',accentColor:'var(--success)'}} />
                                 {cp.pendingConfirm && <span style={{fontSize:'10px',color:'var(--success)',fontWeight:'700',whiteSpace:'nowrap'}}>確定済み</span>}
                               </label>
+                            </td>
+                            <td style={{padding:'6px 10px',textAlign:'center'}}>
+                              <div style={{display:'flex',gap:'8px',justifyContent:'center',flexWrap:'wrap'}}>
+                                <label style={{display:'flex',alignItems:'center',gap:'2px',fontSize:'11px',color:'var(--text-secondary)',cursor:'pointer'}} title="履歴書">
+                                  <input type="checkbox" checked={!!cp.docResume}
+                                    onChange={e=>updateCompany(c.id,idx,'docResume',e.target.checked)}
+                                    style={{width:'14px',height:'14px',cursor:'pointer',accentColor:'var(--accent)'}} />
+                                  履
+                                </label>
+                                <label style={{display:'flex',alignItems:'center',gap:'2px',fontSize:'11px',color:'var(--text-secondary)',cursor:'pointer'}} title="職務経歴書">
+                                  <input type="checkbox" checked={!!cp.docShokumu}
+                                    onChange={e=>updateCompany(c.id,idx,'docShokumu',e.target.checked)}
+                                    style={{width:'14px',height:'14px',cursor:'pointer',accentColor:'var(--accent)'}} />
+                                  職
+                                </label>
+                                <label style={{display:'flex',alignItems:'center',gap:'2px',fontSize:'11px',color:'var(--text-secondary)',cursor:'pointer'}} title="推薦文">
+                                  <input type="checkbox" checked={!!cp.docSuisen}
+                                    onChange={e=>updateCompany(c.id,idx,'docSuisen',e.target.checked)}
+                                    style={{width:'14px',height:'14px',cursor:'pointer',accentColor:'var(--accent)'}} />
+                                  推
+                                </label>
+                              </div>
                             </td>
                             <td style={{padding:'6px 10px'}}>
                               <select value={cp.selectionStatus || '書類選考中'}
