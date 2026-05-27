@@ -2784,9 +2784,34 @@ function CandidateManagePage() {
 
 // ====== 育成ページ ======
 function AcceptedManagePage() {
-  const [accepted, setAccepted] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('crm-accepted') || '[]'); } catch { return []; }
-  });
+  // 企業面接管理の「内定承諾」エントリから正しい企業名を取得
+  const getAcceptedCompanyName = (candId, accEntry) => {
+    try {
+      const plans = JSON.parse(localStorage.getItem('crm-interview-plans') || '{}');
+      const cpList = plans[candId] || [];
+      const acceptedPlans = cpList.filter(cp => cp && cp.selectionStatus === '内定承諾' && cp.company);
+      if (acceptedPlans.length > 0) return acceptedPlans[acceptedPlans.length - 1].company;
+    } catch {}
+    return (accEntry && (accEntry.companyName || accEntry.company)) || '—';
+  };
+
+  const loadAccepted = () => {
+    try {
+      const acc = JSON.parse(localStorage.getItem('crm-accepted') || '[]');
+      // 企業名を企業面接管理から取得して上書き
+      return acc.map(a => ({ ...a, companyName: getAcceptedCompanyName(a.id, a) }));
+    } catch { return []; }
+  };
+  const [accepted, setAccepted] = useState(loadAccepted);
+  React.useEffect(() => {
+    const reload = () => setAccepted(loadAccepted());
+    window.addEventListener('focus', reload);
+    window.addEventListener('storage', reload);
+    return () => {
+      window.removeEventListener('focus', reload);
+      window.removeEventListener('storage', reload);
+    };
+  }, []);
   const updateAccepted = (id, field, value) => {
     const next = accepted.map(c => c.id === id ? {...c, [field]: value} : c);
     setAccepted(next);
