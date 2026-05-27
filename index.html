@@ -3622,41 +3622,41 @@ function SuisenPrepPage() {
   });
   const [selectedHistoryIdx, setSelectedHistoryIdx] = React.useState(null); // null=新規入力, 0〜4=履歴表示
 
-  // 企業提案マッチングタブ用ステート
-  const PREF_ALL = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
-  const [matchingForm, setMatchingForm] = React.useState({
-    status: '新規',
-    name: '',
-    age: '',
-    gender: '男性',
-    education: '高卒',
-    bunri: '文系',
-    major: '',
-    prefecture: '東京都',
-    relocation: '不可',
-    relocationPrefs: [],
-    relocationReason: '',
-    license: '有',
-    employmentType: '正社員',
-    fullTimeExp: '無',
-    jobInterest: '中',
-    jobExp: '無',
-    itExp: '無',
-    skillStatus: '',
-    careerAxis: '',
-    startDate: '',
-    proposedCompanies: '',
-    proposedSchedule: '',
-    commSkill: '中',
-    otherCompanies: '',
-    resumeUrl: '',
-    shokumuUrl: '',
-    memo: '',
-  });
+  // 企業提案マッチングタブ用ステート（テキストエリア方式）
+  const MATCHING_TEMPLATE = `・ステータス：
+・候補者氏名：
+・年齢：
+・性別：
+・最終学歴：
+・文理：理系
+・学科名：
+・都道府県：
+・転勤転居：
+・運転免許：
+・現在の雇用形態：
+・正社員経験：
+・職種志望度：
+・職種経験：無
+・学習状況(スキル)：
+・転職軸：
+・勤務開始可能日：2026年5月
+・提案予定候補企業：
+・提案予定日時：
+・コミュ力：
+・他社選考中の企業：
+・メモ/コメント：
+
+・書類URL：
+履歴書
+
+職務経歴書
+`;
+  const [matchingText, setMatchingText] = React.useState(MATCHING_TEMPLATE);
   const [matchingResult, setMatchingResult] = React.useState('');
   const [matchingLoading, setMatchingLoading] = React.useState(false);
   const [matchingError, setMatchingError] = React.useState('');
   const [matchingCopied, setMatchingCopied] = React.useState(false);
+  const [templateCopied, setTemplateCopied] = React.useState(false);
   const [matchingHistory, setMatchingHistory] = React.useState(() => {
     try { return JSON.parse(localStorage.getItem('matching-history') || '[]'); } catch { return []; }
   });
@@ -3817,83 +3817,28 @@ function SuisenPrepPage() {
     }
   };
 
-  // ── 企業提案マッチングのヘルパー ──
-  const setMF = (k, v) => setMatchingForm(f => ({ ...f, [k]: v }));
-  const togglePref = (p) => setMatchingForm(f => ({
-    ...f,
-    relocationPrefs: f.relocationPrefs.includes(p)
-      ? f.relocationPrefs.filter(x => x !== p)
-      : [...f.relocationPrefs, p],
-  }));
-
-  // フォーム → Claude APIに渡すテキスト形式に整形（提案企業相談ルームのフォーマットに準拠）
-  const buildCandidateText = (f) => {
-    const lines = ['【候補者情報】'];
-    lines.push(`・ステータス：${f.status || ''}`);
-    lines.push(`・候補者氏名：${f.name || ''}`);
-    lines.push(`・年齢：${f.age || ''}`);
-    lines.push(`・性別：${f.gender || ''}`);
-    lines.push(`・最終学歴：${f.education || ''}`);
-    lines.push(`・文理：${f.bunri || ''}`);
-    lines.push(`・学科名：${f.major || ''}`);
-    lines.push(`・都道府県：${f.prefecture || ''}`);
-    if (f.relocation === '条件付き可' && f.relocationPrefs.length > 0) {
-      lines.push(`・転勤転居：条件付き可（可能エリア：${f.relocationPrefs.join('、')}のみ）`);
-    } else {
-      lines.push(`・転勤転居：${f.relocation || ''}`);
-    }
-    if (f.relocationReason && f.relocationReason.trim()) {
-      lines.push(`　└理由や懸念記載：`);
-      lines.push(f.relocationReason.trim());
-    }
-    lines.push(`・運転免許：${f.license || ''}`);
-    lines.push(`・現在の雇用形態：${f.employmentType || ''}`);
-    lines.push(`・正社員経験：${f.fullTimeExp || ''}`);
-    lines.push(`・職種志望度：${f.jobInterest || ''}`);
-    lines.push(`・職種経験：${f.jobExp || ''}`);
-    if (f.skillStatus && f.skillStatus.trim()) {
-      lines.push(`・学習状況(スキル)：${f.skillStatus.trim()}`);
-    } else {
-      lines.push(`・学習状況(スキル)：`);
-    }
-    lines.push(`・IT経験：${f.itExp || ''}`);
-    lines.push(`・転職軸：${f.careerAxis ? f.careerAxis.trim() : ''}`);
-    lines.push(`・勤務開始可能日：${f.startDate ? f.startDate.trim() : ''}`);
-    if (f.proposedCompanies && f.proposedCompanies.trim()) {
-      lines.push(`・提案予定候補企業：`);
-      lines.push(f.proposedCompanies.trim());
-    } else {
-      lines.push(`・提案予定候補企業：`);
-    }
-    lines.push('');
-    lines.push(`・提案予定日時：${f.proposedSchedule ? f.proposedSchedule.trim() : ''}`);
-    lines.push(`・コミュ力：${f.commSkill || ''}`);
-    lines.push(`・他社選考中の企業：${f.otherCompanies ? f.otherCompanies.trim() : ''}`);
-    if (f.memo && f.memo.trim()) {
-      lines.push(`・メモ/コメント：`);
-      lines.push(f.memo.trim());
-    } else {
-      lines.push(`・メモ/コメント：`);
-    }
-    lines.push('');
-    lines.push(`・書類URL：`);
-    lines.push(`履歴書`);
-    if (f.resumeUrl && f.resumeUrl.trim()) lines.push(f.resumeUrl.trim());
-    lines.push('');
-    lines.push(`職務経歴書`);
-    if (f.shokumuUrl && f.shokumuUrl.trim()) lines.push(f.shokumuUrl.trim());
-    return lines.join('\n');
+  // ── 企業提案マッチングのヘルパー（テキストエリア方式）──
+  // テキストから候補者氏名を抽出（履歴タブの表示用）
+  const extractCandidateName = (text) => {
+    const m1 = text.match(/[・\s]*候補者氏名[:：]\s*(.+)/);
+    if (m1 && m1[1].trim()) return m1[1].trim();
+    const m2 = text.match(/[・\s]*氏名[:：]\s*(.+)/);
+    if (m2 && m2[1].trim()) return m2[1].trim();
+    return '';
   };
 
   const handleMatching = async () => {
-    if (!matchingForm.name.trim()) { setMatchingError('候補者氏名を入力してください。'); return; }
-    if (matchingForm.relocation === '条件付き可' && matchingForm.relocationPrefs.length === 0) {
-      setMatchingError('「条件付き可」の場合は、転居可能な都道府県を1つ以上選択してください。');
+    const text = matchingText.trim();
+    if (!text) { setMatchingError('候補者情報を入力してください。'); return; }
+    const candidateName = extractCandidateName(text);
+    if (!candidateName) {
+      setMatchingError('「候補者氏名：」の項目に氏名を入力してください。');
       return;
     }
     setMatchingLoading(true); setMatchingError(''); setMatchingResult(''); setMatchingCopied(false);
     try {
-      const candidateText = buildCandidateText(matchingForm);
+      // 先頭に【候補者情報】見出しが無ければ付与
+      const candidateText = /【候補者情報】/.test(text) ? text : `【候補者情報】\n${text}`;
       const res = await fetch(`${RAILWAY_API}/api/matching`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -3904,12 +3849,11 @@ function SuisenPrepPage() {
       const resultText = data.result || '';
       setMatchingResult(resultText);
       // 履歴に保存（直近5名）
-      const name = matchingForm.name.trim() || '候補者';
       const now = new Date();
       const dateStr = `${now.getMonth()+1}/${now.getDate()}`;
-      const entry = { name, date: dateStr, result: resultText, form: matchingForm };
+      const entry = { name: candidateName, date: dateStr, result: resultText, text };
       setMatchingHistory(prev => {
-        const updated = [entry, ...prev.filter(h => h.name !== name)].slice(0, 5);
+        const updated = [entry, ...prev.filter(h => h.name !== candidateName)].slice(0, 5);
         try { localStorage.setItem('matching-history', JSON.stringify(updated)); } catch {}
         return updated;
       });
@@ -3926,6 +3870,18 @@ function SuisenPrepPage() {
       setMatchingCopied(true);
       setTimeout(() => setMatchingCopied(false), 2000);
     });
+  };
+
+  const handleTemplateCopy = () => {
+    navigator.clipboard.writeText(MATCHING_TEMPLATE).then(() => {
+      setTemplateCopied(true);
+      setTimeout(() => setTemplateCopied(false), 2000);
+    });
+  };
+
+  const handleTemplateReset = () => {
+    setMatchingText(MATCHING_TEMPLATE);
+    setMatchingError('');
   };
 
   // ガイドパネルのコピーボタン用ステート
@@ -4096,383 +4052,160 @@ function SuisenPrepPage() {
       )}
 
       {/* ===== 企業提案マッチングタブ ===== */}
-      {subTab === 'matching' && (() => {
-        const fieldStyle = {
-          width: '100%', padding: '9px 11px', fontSize: '13px',
-          border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
-          background: 'var(--bg-card)', color: 'var(--text-primary)',
-          outline: 'none', boxSizing: 'border-box',
-        };
-        const labelStyle = {
-          fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)',
-          display: 'block', marginBottom: '5px',
-        };
-        const STATUS_OPTS = ['新規', '継続', '再面接', '紹介済'];
-        const GENDER_OPTS = ['男性', '女性'];
-        const EDU_OPTS = ['高卒', '専門', '短大', '大卒', '大学院'];
-        const BUNRI_OPTS = ['文系', '理系'];
-        const RELOC_OPTS = ['可能', '不可', '条件付き可'];
-        const LICENSE_OPTS = ['有', '無'];
-        const EMP_OPTS = ['正社員', '契約社員', 'アルバイト', 'パート', '派遣', '離職中', '学生', 'その他'];
-        const EXP_OPTS = ['有', '無'];
-        const LEVEL_OPTS = ['高', '中', '低'];
+      {subTab === 'matching' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-            {/* 候補者名タブ（履歴 + 新規） */}
-            <div style={{ display: 'flex', gap: '0', borderBottom: '2px solid var(--border)', overflowX: 'auto' }}>
-              {matchingHistory.map((h, i) => (
-                <button key={i} onClick={() => setMatchingHistoryIdx(i)} style={{
-                  padding: '7px 16px', fontSize: '13px', fontWeight: matchingHistoryIdx === i ? 700 : 400,
-                  background: 'none', border: 'none',
-                  borderBottom: matchingHistoryIdx === i ? '2px solid #f59e0b' : '2px solid transparent',
-                  marginBottom: '-2px',
-                  color: matchingHistoryIdx === i ? '#f59e0b' : 'var(--text-muted)',
-                  cursor: 'pointer', whiteSpace: 'nowrap',
-                }}>
-                  {h.name} <span style={{ fontSize: '11px', opacity: 0.7 }}>({h.date})</span>
-                </button>
-              ))}
-              <button onClick={() => { setMatchingHistoryIdx(null); setMatchingResult(''); setMatchingError(''); }} style={{
-                padding: '7px 16px', fontSize: '13px', fontWeight: matchingHistoryIdx === null ? 700 : 400,
+          {/* 候補者名タブ（履歴 + 新規） */}
+          <div style={{ display: 'flex', gap: '0', borderBottom: '2px solid var(--border)', overflowX: 'auto' }}>
+            {matchingHistory.map((h, i) => (
+              <button key={i} onClick={() => setMatchingHistoryIdx(i)} style={{
+                padding: '7px 16px', fontSize: '13px', fontWeight: matchingHistoryIdx === i ? 700 : 400,
                 background: 'none', border: 'none',
-                borderBottom: matchingHistoryIdx === null ? '2px solid #f59e0b' : '2px solid transparent',
+                borderBottom: matchingHistoryIdx === i ? '2px solid #f59e0b' : '2px solid transparent',
                 marginBottom: '-2px',
-                color: matchingHistoryIdx === null ? '#f59e0b' : 'var(--text-muted)',
+                color: matchingHistoryIdx === i ? '#f59e0b' : 'var(--text-muted)',
                 cursor: 'pointer', whiteSpace: 'nowrap',
               }}>
-                ＋ 新規提案
+                {h.name} <span style={{ fontSize: '11px', opacity: 0.7 }}>({h.date})</span>
               </button>
-            </div>
-
-            {/* 履歴表示モード */}
-            {matchingHistoryIdx !== null && matchingHistory[matchingHistoryIdx] && (
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                    🎯 {matchingHistory[matchingHistoryIdx].name} のマッチング結果
-                  </label>
-                  <button onClick={() => {
-                    navigator.clipboard.writeText(matchingHistory[matchingHistoryIdx].result).then(() => {
-                      setMatchingCopied(true); setTimeout(() => setMatchingCopied(false), 2000);
-                    });
-                  }} style={{
-                    padding: '5px 14px', fontSize: '12px', fontWeight: 600,
-                    background: matchingCopied ? 'var(--success)' : 'var(--bg-base)',
-                    color: matchingCopied ? '#fff' : 'var(--text-secondary)',
-                    border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                  }}>
-                    {matchingCopied ? '✅ コピー済み' : '📋 コピー'}
-                  </button>
-                </div>
-                <pre style={{
-                  whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                  padding: '16px', background: 'var(--bg-card)',
-                  border: '1px solid var(--border)', borderRadius: 'var(--radius)',
-                  fontSize: '13px', lineHeight: '1.7', color: 'var(--text-primary)',
-                  maxHeight: '600px', overflowY: 'auto',
-                }}>
-                  {matchingHistory[matchingHistoryIdx].result}
-                </pre>
-              </div>
-            )}
-
-            {/* 新規入力フォーム */}
-            {matchingHistoryIdx === null && (
-              <>
-                <div style={{ padding: '12px 16px', background: 'var(--info-bg)', border: '1px solid var(--info)', borderRadius: 'var(--radius)', fontSize: '13px', color: 'var(--info)' }}>
-                  💡 求職者情報を入力すると、Claude AIが注力求人一覧から最適な企業を5〜10社提案します。
-                </div>
-
-                {/* 基本情報 */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-                  <div>
-                    <label style={labelStyle}>ステータス</label>
-                    <select style={fieldStyle} value={matchingForm.status} onChange={e => setMF('status', e.target.value)}>
-                      {STATUS_OPTS.map(o => <option key={o}>{o}</option>)}
-                    </select>
-                  </div>
-                  <div style={{ gridColumn: 'span 2' }}>
-                    <label style={labelStyle}>候補者氏名 <span style={{ color: 'var(--danger)' }}>*</span></label>
-                    <input style={fieldStyle} value={matchingForm.name} onChange={e => setMF('name', e.target.value)} placeholder="例：山田 太郎" />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>年齢</label>
-                    <input style={fieldStyle} type="number" min="18" max="70" value={matchingForm.age} onChange={e => setMF('age', e.target.value)} placeholder="30" />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-                  <div>
-                    <label style={labelStyle}>性別</label>
-                    <select style={fieldStyle} value={matchingForm.gender} onChange={e => setMF('gender', e.target.value)}>
-                      {GENDER_OPTS.map(o => <option key={o}>{o}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={labelStyle}>最終学歴</label>
-                    <select style={fieldStyle} value={matchingForm.education} onChange={e => setMF('education', e.target.value)}>
-                      {EDU_OPTS.map(o => <option key={o}>{o}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={labelStyle}>文理</label>
-                    <select style={fieldStyle} value={matchingForm.bunri} onChange={e => setMF('bunri', e.target.value)}>
-                      {BUNRI_OPTS.map(o => <option key={o}>{o}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={labelStyle}>学科名</label>
-                    <input style={fieldStyle} value={matchingForm.major} onChange={e => setMF('major', e.target.value)} placeholder="例：機械工学科" />
-                  </div>
-                </div>
-
-                {/* 住所・転居・免許 */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-                  <div>
-                    <label style={labelStyle}>都道府県</label>
-                    <select style={fieldStyle} value={matchingForm.prefecture} onChange={e => setMF('prefecture', e.target.value)}>
-                      {PREF_ALL.map(p => <option key={p}>{p}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={labelStyle}>転勤・転居</label>
-                    <select style={fieldStyle} value={matchingForm.relocation} onChange={e => setMF('relocation', e.target.value)}>
-                      {RELOC_OPTS.map(o => <option key={o}>{o}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={labelStyle}>運転免許</label>
-                    <select style={fieldStyle} value={matchingForm.license} onChange={e => setMF('license', e.target.value)}>
-                      {LICENSE_OPTS.map(o => <option key={o}>{o}</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                {/* 条件付き可の場合のみ：可能エリア複数選択 */}
-                {matchingForm.relocation === '条件付き可' && (
-                  <div style={{ padding: '12px', background: 'var(--bg-base)', border: '1px solid var(--accent-light)', borderRadius: 'var(--radius)' }}>
-                    <label style={{ ...labelStyle, marginBottom: '8px' }}>転居可能な都道府県（複数選択可） <span style={{ color: 'var(--danger)' }}>*</span></label>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                      {PREF_ALL.map(p => {
-                        const selected = matchingForm.relocationPrefs.includes(p);
-                        return (
-                          <button key={p} type="button" onClick={() => togglePref(p)} style={{
-                            padding: '4px 10px', fontSize: '12px',
-                            background: selected ? 'var(--accent)' : 'var(--bg-card)',
-                            color: selected ? '#fff' : 'var(--text-secondary)',
-                            border: selected ? '1px solid var(--accent)' : '1px solid var(--border)',
-                            borderRadius: '999px', cursor: 'pointer',
-                          }}>
-                            {p}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {matchingForm.relocationPrefs.length > 0 && (
-                      <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>
-                        選択中：{matchingForm.relocationPrefs.length}件（{matchingForm.relocationPrefs.join('、')}）
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* 転居の理由・懸念（自由記述） */}
-                <div>
-                  <label style={labelStyle}>└ 転勤・転居の理由や懸念</label>
-                  <textarea
-                    value={matchingForm.relocationReason}
-                    onChange={e => setMF('relocationReason', e.target.value)}
-                    placeholder="例：正社員就業を機に一人暮らしも前向きに検討。関西エリアまでなら許容可能。"
-                    style={{
-                      width: '100%', minHeight: '60px', padding: '11px', fontSize: '13px',
-                      border: '1px solid var(--border)', borderRadius: 'var(--radius)',
-                      background: 'var(--bg-card)', color: 'var(--text-primary)',
-                      resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.6', boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-
-                {/* 雇用形態・経験 */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-                  <div>
-                    <label style={labelStyle}>現在の雇用形態</label>
-                    <select style={fieldStyle} value={matchingForm.employmentType} onChange={e => setMF('employmentType', e.target.value)}>
-                      {EMP_OPTS.map(o => <option key={o}>{o}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={labelStyle}>正社員経験</label>
-                    <select style={fieldStyle} value={matchingForm.fullTimeExp} onChange={e => setMF('fullTimeExp', e.target.value)}>
-                      {EXP_OPTS.map(o => <option key={o}>{o}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={labelStyle}>職種志望度</label>
-                    <select style={fieldStyle} value={matchingForm.jobInterest} onChange={e => setMF('jobInterest', e.target.value)}>
-                      {LEVEL_OPTS.map(o => <option key={o}>{o}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={labelStyle}>コミュ力</label>
-                    <select style={fieldStyle} value={matchingForm.commSkill} onChange={e => setMF('commSkill', e.target.value)}>
-                      {LEVEL_OPTS.map(o => <option key={o}>{o}</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-                  <div>
-                    <label style={labelStyle}>職種経験</label>
-                    <select style={fieldStyle} value={matchingForm.jobExp} onChange={e => setMF('jobExp', e.target.value)}>
-                      {EXP_OPTS.map(o => <option key={o}>{o}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={labelStyle}>IT経験</label>
-                    <select style={fieldStyle} value={matchingForm.itExp} onChange={e => setMF('itExp', e.target.value)}>
-                      {EXP_OPTS.map(o => <option key={o}>{o}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={labelStyle}>勤務開始可能日</label>
-                    <input style={fieldStyle} value={matchingForm.startDate} onChange={e => setMF('startDate', e.target.value)} placeholder="例：2026年6月、即日 など" />
-                  </div>
-                </div>
-
-                {/* 学習状況（スキル） */}
-                <div>
-                  <label style={labelStyle}>学習状況（スキル）</label>
-                  <textarea
-                    value={matchingForm.skillStatus}
-                    onChange={e => setMF('skillStatus', e.target.value)}
-                    placeholder="例：高校時代に授業でC言語を学習。実務レベル使用には不安あり。"
-                    style={{
-                      width: '100%', minHeight: '60px', padding: '11px', fontSize: '13px',
-                      border: '1px solid var(--border)', borderRadius: 'var(--radius)',
-                      background: 'var(--bg-card)', color: 'var(--text-primary)',
-                      resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.6', boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-
-                {/* 転職軸 */}
-                <div>
-                  <label style={labelStyle}>転職軸</label>
-                  <textarea
-                    value={matchingForm.careerAxis}
-                    onChange={e => setMF('careerAxis', e.target.value)}
-                    placeholder="例：給与、手に職をつけたい、ワークライフバランス、安定企業 など"
-                    style={{
-                      width: '100%', minHeight: '60px', padding: '11px', fontSize: '13px',
-                      border: '1px solid var(--border)', borderRadius: 'var(--radius)',
-                      background: 'var(--bg-card)', color: 'var(--text-primary)',
-                      resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.6', boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-
-                {/* 提案予定候補企業・日時 */}
-                <div>
-                  <label style={labelStyle}>提案予定候補企業</label>
-                  <textarea
-                    value={matchingForm.proposedCompanies}
-                    onChange={e => setMF('proposedCompanies', e.target.value)}
-                    placeholder={'例：\nIT→SSE、オープンアップIT\n機械→SSE、BREXA Technology、オープンアップネクストエンジニア'}
-                    style={{
-                      width: '100%', minHeight: '70px', padding: '11px', fontSize: '13px',
-                      border: '1px solid var(--border)', borderRadius: 'var(--radius)',
-                      background: 'var(--bg-card)', color: 'var(--text-primary)',
-                      resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.6', boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={labelStyle}>提案予定日時</label>
-                    <input style={fieldStyle} value={matchingForm.proposedSchedule} onChange={e => setMF('proposedSchedule', e.target.value)} placeholder="例：5/8 12:00〜" />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>他社選考中の企業</label>
-                    <input style={fieldStyle} value={matchingForm.otherCompanies} onChange={e => setMF('otherCompanies', e.target.value)} placeholder="例：無、または企業名" />
-                  </div>
-                </div>
-
-                {/* 書類URL */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={labelStyle}>履歴書URL</label>
-                    <input style={fieldStyle} type="url" value={matchingForm.resumeUrl} onChange={e => setMF('resumeUrl', e.target.value)} placeholder="https://drive.google.com/..." />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>職務経歴書URL</label>
-                    <input style={fieldStyle} type="url" value={matchingForm.shokumuUrl} onChange={e => setMF('shokumuUrl', e.target.value)} placeholder="https://drive.google.com/... または「提出なし」" />
-                  </div>
-                </div>
-
-                {/* メモ */}
-                <div>
-                  <label style={labelStyle}>メモ・コメント</label>
-                  <textarea
-                    value={matchingForm.memo}
-                    onChange={e => setMF('memo', e.target.value)}
-                    placeholder="その他、提案時に考慮すべき情報を自由記述（年収希望、家庭事情、ブリッジ判断の背景 など）"
-                    style={{
-                      width: '100%', minHeight: '80px', padding: '11px', fontSize: '13px',
-                      border: '1px solid var(--border)', borderRadius: 'var(--radius)',
-                      background: 'var(--bg-card)', color: 'var(--text-primary)',
-                      resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.6', boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-
-                {/* 実行ボタン */}
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                  <button onClick={handleMatching} disabled={matchingLoading} style={{
-                    padding: '10px 28px', fontSize: '14px', fontWeight: 700,
-                    background: matchingLoading ? 'var(--border)' : '#f59e0b',
-                    color: '#fff', border: 'none', borderRadius: 'var(--radius)',
-                    cursor: matchingLoading ? 'not-allowed' : 'pointer',
-                  }}>
-                    {matchingLoading ? '⏳ マッチング中...' : '🎯 提案企業をマッチング'}
-                  </button>
-                  {matchingLoading && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Claude AIが求人データを照合中です（10〜30秒かかります）</span>}
-                </div>
-
-                {matchingError && (
-                  <div style={{ padding: '12px', background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: 'var(--radius)', fontSize: '13px', color: 'var(--danger)' }}>
-                    ⚠️ {matchingError}
-                  </div>
-                )}
-
-                {/* 結果表示 */}
-                {matchingResult && (
-                  <div style={{ marginTop: '8px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>✅ マッチング結果</label>
-                      <button onClick={handleMatchingCopy} style={{
-                        padding: '5px 14px', fontSize: '12px', fontWeight: 600,
-                        background: matchingCopied ? 'var(--success)' : 'var(--bg-base)',
-                        color: matchingCopied ? '#fff' : 'var(--text-secondary)',
-                        border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                      }}>
-                        {matchingCopied ? '✅ コピー済み' : '📋 コピー'}
-                      </button>
-                    </div>
-                    <pre style={{
-                      whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: '16px',
-                      background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)',
-                      fontSize: '13px', lineHeight: '1.7', color: 'var(--text-primary)', maxHeight: '600px', overflowY: 'auto',
-                    }}>{matchingResult}</pre>
-                  </div>
-                )}
-              </>
-            )}
+            ))}
+            <button onClick={() => { setMatchingHistoryIdx(null); setMatchingResult(''); setMatchingError(''); }} style={{
+              padding: '7px 16px', fontSize: '13px', fontWeight: matchingHistoryIdx === null ? 700 : 400,
+              background: 'none', border: 'none',
+              borderBottom: matchingHistoryIdx === null ? '2px solid #f59e0b' : '2px solid transparent',
+              marginBottom: '-2px',
+              color: matchingHistoryIdx === null ? '#f59e0b' : 'var(--text-muted)',
+              cursor: 'pointer', whiteSpace: 'nowrap',
+            }}>
+              ＋ 新規提案
+            </button>
           </div>
-        );
-      })()}
+
+          {/* 履歴表示モード */}
+          {matchingHistoryIdx !== null && matchingHistory[matchingHistoryIdx] && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  🎯 {matchingHistory[matchingHistoryIdx].name} のマッチング結果
+                </label>
+                <button onClick={() => {
+                  navigator.clipboard.writeText(matchingHistory[matchingHistoryIdx].result).then(() => {
+                    setMatchingCopied(true); setTimeout(() => setMatchingCopied(false), 2000);
+                  });
+                }} style={{
+                  padding: '5px 14px', fontSize: '12px', fontWeight: 600,
+                  background: matchingCopied ? 'var(--success)' : 'var(--bg-base)',
+                  color: matchingCopied ? '#fff' : 'var(--text-secondary)',
+                  border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                }}>
+                  {matchingCopied ? '✅ コピー済み' : '📋 コピー'}
+                </button>
+              </div>
+              <pre style={{
+                whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                padding: '16px', background: 'var(--bg-card)',
+                border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+                fontSize: '13px', lineHeight: '1.7', color: 'var(--text-primary)',
+                maxHeight: '600px', overflowY: 'auto',
+              }}>
+                {matchingHistory[matchingHistoryIdx].result}
+              </pre>
+            </div>
+          )}
+
+          {/* 新規入力フォーム（テキストエリア方式） */}
+          {matchingHistoryIdx === null && (
+            <>
+              <div style={{ padding: '12px 16px', background: 'var(--info-bg)', border: '1px solid var(--info)', borderRadius: 'var(--radius)', fontSize: '13px', color: 'var(--info)' }}>
+                💡 下のテキストエリアにフォーマットに沿って候補者情報を記入し、「🎯 提案企業をマッチング」を押してください。Claude AIが注力求人一覧から最適な企業を5〜10社提案します。
+              </div>
+
+              {/* テキストエリア（候補者情報） */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                    候補者情報 <span style={{ color: 'var(--danger)' }}>*</span>
+                  </label>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button onClick={handleTemplateCopy} style={{
+                      padding: '4px 10px', fontSize: '11px', fontWeight: 600,
+                      background: templateCopied ? 'var(--success)' : 'var(--bg-base)',
+                      color: templateCopied ? '#fff' : 'var(--text-secondary)',
+                      border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                    }}>
+                      {templateCopied ? '✅ コピー済み' : '📋 フォーマットをコピー'}
+                    </button>
+                    <button onClick={handleTemplateReset} style={{
+                      padding: '4px 10px', fontSize: '11px', fontWeight: 600,
+                      background: 'var(--bg-base)', color: 'var(--text-secondary)',
+                      border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                    }}>
+                      ↺ フォーマットに戻す
+                    </button>
+                  </div>
+                </div>
+                <textarea
+                  value={matchingText}
+                  onChange={e => setMatchingText(e.target.value)}
+                  placeholder="候補者情報を貼り付け／入力してください"
+                  style={{
+                    width: '100%', minHeight: '480px', padding: '14px', fontSize: '13px',
+                    border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+                    background: 'var(--bg-card)', color: 'var(--text-primary)',
+                    resize: 'vertical', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                    lineHeight: '1.7', boxSizing: 'border-box',
+                  }}
+                />
+                <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                  ※ 「候補者氏名：」を必ず記入してください（履歴タブの表示に使用）
+                </div>
+              </div>
+
+              {/* 実行ボタン */}
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <button onClick={handleMatching} disabled={matchingLoading} style={{
+                  padding: '10px 28px', fontSize: '14px', fontWeight: 700,
+                  background: matchingLoading ? 'var(--border)' : '#f59e0b',
+                  color: '#fff', border: 'none', borderRadius: 'var(--radius)',
+                  cursor: matchingLoading ? 'not-allowed' : 'pointer',
+                }}>
+                  {matchingLoading ? '⏳ マッチング中...' : '🎯 提案企業をマッチング'}
+                </button>
+                {matchingLoading && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Claude AIが求人データを照合中です（10〜30秒かかります）</span>}
+              </div>
+
+              {matchingError && (
+                <div style={{ padding: '12px', background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: 'var(--radius)', fontSize: '13px', color: 'var(--danger)' }}>
+                  ⚠️ {matchingError}
+                </div>
+              )}
+
+              {/* 結果表示 */}
+              {matchingResult && (
+                <div style={{ marginTop: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>✅ マッチング結果</label>
+                    <button onClick={handleMatchingCopy} style={{
+                      padding: '5px 14px', fontSize: '12px', fontWeight: 600,
+                      background: matchingCopied ? 'var(--success)' : 'var(--bg-base)',
+                      color: matchingCopied ? '#fff' : 'var(--text-secondary)',
+                      border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                    }}>
+                      {matchingCopied ? '✅ コピー済み' : '📋 コピー'}
+                    </button>
+                  </div>
+                  <pre style={{
+                    whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: '16px',
+                    background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+                    fontSize: '13px', lineHeight: '1.7', color: 'var(--text-primary)', maxHeight: '600px', overflowY: 'auto',
+                  }}>{matchingResult}</pre>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
 
       {/* ===== 履歴書・職務経歴書・推薦文タブ（共通レイアウト） ===== */}
       {subTab !== 'check' && subTab !== 'matching' && (
