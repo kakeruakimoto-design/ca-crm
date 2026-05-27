@@ -179,21 +179,98 @@ select.filter-select{background:var(--bg-base);border:1px solid var(--border);bo
       'crm-goals',
     ];
 
+    // === 重複排除ヘルパー（admin.html用）===
+    function _norm(s) { return (s == null ? '' : String(s)).replace(/\s/g, ''); }
+    function _scoreCand(c) {
+      let s = 0;
+      if (c.phone) s++;
+      if (c.email) s++;
+      if (c.companyName) s++;
+      if (c.docResumeUrl) s += 2;
+      if (c.docShokumuUrl) s += 2;
+      if (c.firstInterviewDate) s++;
+      if (c.recommendationDate) s++;
+      if (c.expectedRevenue) s++;
+      if (c.contractAmount) s++;
+      if (c.bridgeDate) s++;
+      if (c.acceptedAt || c.acceptanceDate) s += 2;
+      return s;
+    }
+    function _dedupCands(arr) {
+      if (!Array.isArray(arr)) return arr;
+      const groups = {};
+      const noNameItems = [];
+      for (const c of arr) {
+        if (!c || typeof c !== 'object') continue;
+        const n = _norm(c.name);
+        if (!n) { noNameItems.push(c); continue; }
+        const key = n + '|' + _norm(c.assignedCA);
+        (groups[key] = groups[key] || []).push(c);
+      }
+      const out = [];
+      for (const items of Object.values(groups)) {
+        if (items.length === 1) { out.push(items[0]); }
+        else { items.sort(function(a,b){ return _scoreCand(b) - _scoreCand(a); }); out.push(items[0]); }
+      }
+      return out.concat(noNameItems);
+    }
+    function _dedupAccepted(arr) {
+      if (!Array.isArray(arr)) return arr;
+      const groups = {};
+      for (const a of arr) {
+        if (!a || typeof a !== 'object') continue;
+        const n = _norm(a.name);
+        if (!n) continue;
+        const key = n + '|' + _norm(a.companyName);
+        (groups[key] = groups[key] || []).push(a);
+      }
+      const out = [];
+      for (const items of Object.values(groups)) {
+        if (items.length === 1) { out.push(items[0]); }
+        else {
+          items.sort(function(a,b){
+            let sa = 0, sb = 0;
+            if (a.contractAmount) sa++; if (b.contractAmount) sb++;
+            if (a.joiningDate) sa++; if (b.joiningDate) sb++;
+            if (a.acceptanceDate || a.acceptedAt) sa++; if (b.acceptanceDate || b.acceptedAt) sb++;
+            return sb - sa;
+          });
+          out.push(items[0]);
+        }
+      }
+      return out;
+    }
+    function _dedupValueForKey(key, parsed) {
+      if (key === 'crm-candidates') return _dedupCands(parsed);
+      if (key === 'crm-accepted')   return _dedupAccepted(parsed);
+      return parsed;
+    }
+    window.__dedupCandidates = _dedupCands;
+    window.__dedupAccepted = _dedupAccepted;
+
     const _orig = localStorage.setItem.bind(localStorage);
     window.__lsSetItem = _orig;
 
-    // localStorage書き込み → Firestoreにも自動反映
+    // localStorage書き込み → 重複除去 → Firestoreにも自動反映
     localStorage.setItem = function(key, value) {
-      _orig(key, value);
+      let outValue = value;
+      if (SYNC_KEYS.includes(key)) {
+        try {
+          const parsed = JSON.parse(value);
+          const cleaned = _dedupValueForKey(key, parsed);
+          outValue = JSON.stringify(cleaned);
+        } catch(e) {}
+      }
+      _orig(key, outValue);
       if (SYNC_KEYS.includes(key) && window.__crmDb) {
         try {
-          window.__crmDb.collection('crm').doc(key).set({ v: JSON.parse(value) })
+          window.__crmDb.collection('crm').doc(key).set({ v: JSON.parse(outValue) })
             .catch(function(e) { console.warn('[Firestore] write error:', key, e); });
         } catch(e) {}
       }
     };
 
-    // Firestore → localStorage同期（全CAデータを取得）
+    // Firestore → localStorage同期（読み込み時も重複除去）
     window.__syncFromFirestore = async function() {
       if (!window.__crmDb) return [];
       const synced = [];
@@ -201,7 +278,8 @@ select.filter-select{background:var(--bg-base);border:1px solid var(--border);bo
         try {
           const snap = await window.__crmDb.collection('crm').doc(key).get();
           if (snap.exists && snap.data() && snap.data().v !== undefined) {
-            _orig(key, JSON.stringify(snap.data().v));
+            const v = _dedupValueForKey(key, snap.data().v);
+            _orig(key, JSON.stringify(v));
             synced.push(key);
           }
         } catch(e) { console.warn('[Firestore] read error:', key, e); }
@@ -209,13 +287,14 @@ select.filter-select{background:var(--bg-base);border:1px solid var(--border);bo
       return synced;
     };
 
-    // リアルタイム更新リスナー（他のCAが更新したら即反映）
+    // リアルタイム更新リスナー（読み込み時も重複除去）
     window.__startFirestoreListener = function(onUpdate) {
       if (!window.__crmDb) return;
       SYNC_KEYS.forEach(function(key) {
         window.__crmDb.collection('crm').doc(key).onSnapshot(function(snap) {
           if (snap.exists && snap.data() && snap.data().v !== undefined) {
-            _orig(key, JSON.stringify(snap.data().v));
+            const v = _dedupValueForKey(key, snap.data().v);
+            _orig(key, JSON.stringify(v));
             if (onUpdate) onUpdate(key);
           }
         }, function(e) { console.warn('[Firestore] listener error:', key, e); });
@@ -2183,9 +2262,17 @@ function parseExcelToCandidate(workbook, existingCands, detectedCompany) {
     if (i - headerIdx <= 5) preview.push(row.slice(0,8).map(v=>String(v||'').trim()).join(' | '));
     const phone = String(row[colPhone] || '').replace(/\D/g,'');
     const email = String(row[colEmail] || '').trim();
+    const _normN = s => String(s||'').replace(/\s/g, '');
+    const importCA = colCA >= 0 ? String(row[colCA]||'').trim() : '';
     const isDup = existing.some(e => {
       const ep = String(e.phone||'').replace(/\D/g,'');
-      return (name && name === e.name) || (phone && phone === ep) || (email && email === e.email && email);
+      // 正規化した氏名で比較（スペース有無を吸収）。担当CAも同じ場合のみ重複扱い。
+      if (name && _normN(name) === _normN(e.name)) {
+        if (!importCA || !e.assignedCA || importCA === e.assignedCA) return true;
+      }
+      if (phone && phone === ep && phone.length >= 8) return true;
+      if (email && email === e.email) return true;
+      return false;
     });
     if (isDup) { dupCount++; continue; }
     const status = colStatus >= 0 ? String(row[colStatus]||'').trim() : 'アプローチ中';
@@ -2310,9 +2397,18 @@ function CSVImportModal({ onImport, onClose, existingCands }) {
         sourceCompany: o['流入企業名'] || detectedCompany || '',
       };
     }).filter(c => c.name)
-      .filter(r => !existing.some(e =>
-        (r.name && r.name === e.name) && (r.phone === e.phone || r.email === e.email)
-      ));
+      .filter(r => {
+        // 正規化した氏名で重複チェック。担当CAが同じなら重複とみなす。
+        const _normN = s => String(s||'').replace(/\s/g, '');
+        return !existing.some(e => {
+          if (r.name && _normN(r.name) === _normN(e.name)) {
+            if (!r.assignedCA || !e.assignedCA || r.assignedCA === e.assignedCA) return true;
+          }
+          if (r.phone && e.phone && r.phone === e.phone && r.phone.length >= 8) return true;
+          if (r.email && e.email && r.email === e.email) return true;
+          return false;
+        });
+      });
     onImport(rows);
   };
   return (
