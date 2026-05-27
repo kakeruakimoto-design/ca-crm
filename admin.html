@@ -216,24 +216,31 @@ select.filter-select{background:var(--bg-base);border:1px solid var(--border);bo
     }
     function _dedupAccepted(arr) {
       if (!Array.isArray(arr)) return arr;
+      // accepted は (name + assignedCA) で一意化（会社名違いでも同一人物扱い）
       const groups = {};
       for (const a of arr) {
         if (!a || typeof a !== 'object') continue;
         const n = _norm(a.name);
         if (!n) continue;
-        const key = n + '|' + _norm(a.companyName);
+        const key = n + '|' + _norm(a.assignedCA);
         (groups[key] = groups[key] || []).push(a);
       }
+      const score = a => {
+        let s = 0;
+        if (a.contractAmount && Number(a.contractAmount) > 0) s += 2;
+        if (a.joiningDate) s++;
+        if (a.acceptanceDate || a.acceptedAt) s++;
+        if (a.companyName) s++;
+        return s;
+      };
       const out = [];
       for (const items of Object.values(groups)) {
         if (items.length === 1) { out.push(items[0]); }
         else {
           items.sort(function(a,b){
-            let sa = 0, sb = 0;
-            if (a.contractAmount) sa++; if (b.contractAmount) sb++;
-            if (a.joiningDate) sa++; if (b.joiningDate) sb++;
-            if (a.acceptanceDate || a.acceptedAt) sa++; if (b.acceptanceDate || b.acceptedAt) sb++;
-            return sb - sa;
+            const ds = score(b) - score(a);
+            if (ds !== 0) return ds;
+            return String(b.acceptanceDate||b.acceptedAt||'').localeCompare(String(a.acceptanceDate||a.acceptedAt||''));
           });
           out.push(items[0]);
         }
