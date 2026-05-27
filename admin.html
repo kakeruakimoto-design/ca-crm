@@ -1944,6 +1944,17 @@ const getCSStatus = c => c.csStatus || (CS_STATUS_VALUES.includes(c.status) ? c.
 const getCAStatus = c => c.caStatus || (CA_PIPELINE_STAGES.includes(c.status) ? c.status : '');
 const SOURCE_COMPANIES = ['ネクストレンド','ネクステージ','EK','その他'];
 const MEDIA_SOURCES = ['Indeed','リクナビNEXT','マイナビ転職','doda','エン転職','ハローワーク','LinkedIn','直接応募','その他'];
+// 新カラム用：媒体（Indeed / エンゲージ / その他の3択）
+const MEDIA_OPTIONS_TABLE = ['Indeed','エンゲージ','その他'];
+// 新カラム用：求人内容（人材紹介でよくある職種）
+const JOB_CATEGORIES = [
+  'ITエンジニア','システムエンジニア','ゲームクリエイター','ゲームエンジニア','ゲームテスター',
+  'Webプログラマー','Webデザイナー','UIデザイナー','インフラエンジニア',
+  'サービスエンジニア','機械設計','電気設計','生産技術','品質管理',
+  '施工管理','CADオペレーター','製造','営業','事務','その他'
+];
+// 新カラム用：テレアポ回数
+const TELEAPO_OPTIONS = ['1回目','2回目','3回目','4回目'];
 
 const MOCK_CANDS_ADMIN = [
   {id:'a001',name:'田野 峻平',  gender:'男性',age:35,prefecture:'神奈川県',jobType:'ゲームテスター',  createdAt:'2026-04-02',media:'Indeed',     assignedCA:'秋元',status:'日程設定済み',firstInterviewDate:'2026-04-07T10:00',memo:'4/2設定',   phone:'090-1234-5678',email:'tanono@example.com',   sourceCompany:'ネクストレンド'},
@@ -2347,7 +2358,13 @@ function CandidateManagePage() {
                 <th style={{minWidth:'80px'}}>職種</th>
                 <th style={{minWidth:'120px'}}>流入企業</th>
                 <th style={{minWidth:'110px'}}>担当CA</th>
+                <th style={{minWidth:'120px'}}>求人内容</th>
+                <th style={{minWidth:'140px'}}>求人タイトル</th>
+                <th style={{minWidth:'100px'}}>媒体</th>
                 <th style={{minWidth:'80px',cursor:'pointer',userSelect:'none'}} onClick={()=>handleSort('createdAt')}>流入日{sortIcon('createdAt')}</th>
+                <th style={{minWidth:'90px'}}>テレアポ</th>
+                <th style={{minWidth:'70px',textAlign:'center'}}>ライン登録</th>
+                <th style={{minWidth:'60px',textAlign:'center'}}>理系</th>
                 <th style={{minWidth:'130px',cursor:'pointer',userSelect:'none'}} onClick={()=>handleSort('status')}>ステータス{sortIcon('status')}</th>
                 <th style={{minWidth:'170px'}}>初回面接予定日時</th>
                 <th style={{minWidth:'110px'}}>電話番号</th>
@@ -2360,7 +2377,7 @@ function CandidateManagePage() {
             </thead>
             <tbody>
               {filtered.length === 0
-                ? <tr><td colSpan={14} style={{textAlign:'center',padding:'32px',color:'var(--text-muted)'}}>該当する求職者がいません</td></tr>
+                ? <tr><td colSpan={22} style={{textAlign:'center',padding:'32px',color:'var(--text-muted)'}}>該当する求職者がいません</td></tr>
                 : filtered.map(c => (
                     <tr key={c.id} style={getCSStatus(c)==='終了'?{background:'#f3f4f6',opacity:0.7}:{}}>
                       <td style={{textAlign:'center'}}>
@@ -2390,7 +2407,40 @@ function CandidateManagePage() {
                           {ALL_CAS_ADMIN.map(ca=><option key={ca} value={ca}>{ca}</option>)}
                         </select>
                       </td>
+                      <td>
+                        <select value={c.jobCategory||''} onChange={e=>updateField(c.id,'jobCategory',e.target.value)}
+                          style={{fontSize:'13px',padding:'3px 6px',border:'1px solid var(--border)',borderRadius:'4px',background:'var(--bg-base)',color:'var(--text-primary)',maxWidth:'120px'}}>
+                          <option value="">未設定</option>
+                          {JOB_CATEGORIES.map(j=><option key={j} value={j}>{j}</option>)}
+                        </select>
+                      </td>
+                      <td>
+                        <input value={c.jobTitle||''} onChange={e=>updateField(c.id,'jobTitle',e.target.value)} placeholder="求人タイトル"
+                          style={{fontSize:'13px',padding:'3px 6px',border:'1px solid var(--border)',borderRadius:'4px',background:'var(--bg-base)',color:'var(--text-primary)',width:'130px'}}/>
+                      </td>
+                      <td>
+                        <select value={c.media||''} onChange={e=>updateField(c.id,'media',e.target.value)}
+                          style={{fontSize:'13px',padding:'3px 6px',border:'1px solid var(--border)',borderRadius:'4px',background:'var(--bg-base)',color:'var(--text-primary)',maxWidth:'95px'}}>
+                          <option value="">未設定</option>
+                          {MEDIA_OPTIONS_TABLE.map(m=><option key={m} value={m}>{m}</option>)}
+                        </select>
+                      </td>
                       <td style={{color:'var(--text-secondary)',fontSize:'14px'}}>{(c.createdAt||'').replace(/^(\d{4})-(\d{2})-(\d{2}).*/,(_,y,m,d)=>`${parseInt(m)}/${parseInt(d)}`)}</td>
+                      <td>
+                        <select value={c.teleApo||''} onChange={e=>updateField(c.id,'teleApo',e.target.value)}
+                          style={{fontSize:'13px',padding:'3px 6px',border:'1px solid var(--border)',borderRadius:'4px',background:'var(--bg-base)',color:'var(--text-primary)',maxWidth:'85px'}}>
+                          <option value="">未設定</option>
+                          {TELEAPO_OPTIONS.map(t=><option key={t} value={t}>{t}</option>)}
+                        </select>
+                      </td>
+                      <td style={{textAlign:'center'}}>
+                        <input type="checkbox" checked={!!c.lineRegistered} onChange={e=>updateField(c.id,'lineRegistered',e.target.checked)}
+                          style={{width:'16px',height:'16px',cursor:'pointer'}}/>
+                      </td>
+                      <td style={{textAlign:'center'}}>
+                        <input type="checkbox" checked={!!c.isScience} onChange={e=>updateField(c.id,'isScience',e.target.checked)}
+                          style={{width:'16px',height:'16px',cursor:'pointer'}}/>
+                      </td>
                       <td>
                         <select value={getCSStatus(c)||''} onChange={e=>updateField(c.id,'csStatus',e.target.value)}
                           style={{fontSize:'13px',padding:'3px 6px',border:'1px solid var(--border)',borderRadius:'4px',background:'var(--bg-base)',color:getCSStatus(c)==='終了'?'var(--text-muted)':'var(--text-primary)',maxWidth:'120px'}}>
