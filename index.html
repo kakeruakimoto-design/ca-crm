@@ -951,6 +951,50 @@ function HBarChart({ data, valueFormatter }) {
   );
 }
 
+// ====== DOC LINKS（書類リンクのホバーポップアップ）======
+// c.docResumeUrl / c.docShokumuUrl が設定されている場合、氏名の右に📎を表示
+// マウスホバーで履歴書・職務経歴書のGoogle Driveリンクをポップアップ表示
+function DocLinks({ resume, shokumu }) {
+  const [open, setOpen] = React.useState(false);
+  if (!resume && !shokumu) return null;
+  return (
+    <span
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      style={{
+        position:'relative', display:'inline-block', marginLeft:'4px',
+        cursor:'pointer', fontSize:'12px', verticalAlign:'middle',
+      }}
+      title="提出書類あり"
+    >
+      <span style={{color:'#2563eb'}}>📎</span>
+      {open && (
+        <div style={{
+          position:'absolute', top:'100%', left:'0', marginTop:'4px', zIndex:9999,
+          background:'#fff', border:'1px solid var(--border)', borderRadius:'6px',
+          boxShadow:'0 6px 20px rgba(0,0,0,0.15)', padding:'8px',
+          display:'flex', flexDirection:'column', gap:'4px', minWidth:'160px',
+        }}>
+          {resume && (
+            <a href={resume} target="_blank" rel="noopener noreferrer"
+              style={{display:'block',padding:'6px 10px',background:'#eff6ff',color:'#1d4ed8',
+                borderRadius:'4px',fontSize:'12px',fontWeight:600,textDecoration:'none',whiteSpace:'nowrap'}}>
+              📄 履歴書を開く
+            </a>
+          )}
+          {shokumu && (
+            <a href={shokumu} target="_blank" rel="noopener noreferrer"
+              style={{display:'block',padding:'6px 10px',background:'#f5f3ff',color:'#6d28d9',
+                borderRadius:'4px',fontSize:'12px',fontWeight:600,textDecoration:'none',whiteSpace:'nowrap'}}>
+              📋 職務経歴書を開く
+            </a>
+          )}
+        </div>
+      )}
+    </span>
+  );
+}
+
 // ====== STATUS BADGE ======
 function StatusBadge({ status }) {
   return (
@@ -2223,7 +2267,10 @@ function CandidatesPage() {
               const earliestIv = getEarliestInterview(c.id);
               return (
                 <tr key={c.id} style={{opacity: isEnded ? 0.45 : 1, background: isEnded ? 'var(--bg-hover)' : ''}}>
-                  <td className="name" style={{color: isEnded ? 'var(--text-muted)' : '', minWidth:'6em', whiteSpace:'normal', wordBreak:'keep-all'}}>{c.name}</td>
+                  <td className="name" style={{color: isEnded ? 'var(--text-muted)' : '', minWidth:'6em', whiteSpace:'normal', wordBreak:'keep-all'}}>
+                    {c.name}
+                    <DocLinks resume={c.docResumeUrl} shokumu={c.docShokumuUrl} />
+                  </td>
                   <td>
                     <div style={{display:'flex',alignItems:'center',gap:'4px',position:'relative'}}>
                       <select
