@@ -243,7 +243,7 @@ select.filter-select{background:var(--bg-base);border:1px solid var(--border);bo
 (function(){
   try {
     if (localStorage.getItem('crm-candidates-seed-ver') === 'v2') {
-      var ENDED_ST_V3 = ['飛び(辞退)', '前辞退', '面接飛び', '救出不可', '見送り'];
+      var ENDED_ST_V3 = ['飛び(辞退)', '飛び', '前辞退', '面接飛び', '救出不可', '見送り'];
       var cands = JSON.parse(localStorage.getItem('crm-candidates') || '[]');
       var updated = cands.map(function(c) {
         var st = c.caStatus || c.status;
@@ -819,8 +819,8 @@ function _calcTeamMetrics(period) {
       }).length
     : cands.filter(c => !!c.firstInterviewDate).length;
 
-  // 飛び系ステータス（前辞退・面接飛び・飛び(辞退)）を一括定義
-  const FLY_ST = ['飛び(辞退)', '前辞退', '面接飛び'];
+  // 飛び系ステータス（前辞退・面接飛び・飛び（旧称：飛び(辞退)））を一括定義
+  const FLY_ST = ['飛び(辞退)', '飛び', '前辞退', '面接飛び'];
 
   // 初回面接: firstInterviewDate がこの月 かつ 過去 かつ 面接設定/飛び系でない
   const aINT = pk
@@ -1018,7 +1018,7 @@ function _loadAdminSummaryData() {
         if (e.selectionStatus === '書類選考中') return;
         if (e.pendingConfirm) return;
         const _cs = cand.caStatus || cand.status || '';
-        if (['飛び(辞退)','前辞退','面接飛び','救出不可','見送り','承諾'].includes(_cs)) return;
+        if (['飛び(辞退)','飛び','前辞退','面接飛び','救出不可','見送り','承諾'].includes(_cs)) return;
         if (['選考辞退','書類お見送り','面接お見送り'].includes(e.selectionStatus)) return;
         interviewsToday.push({
           name: cand.name,
@@ -1042,7 +1042,7 @@ function _loadAdminSummaryData() {
         if (e.selectionStatus === '書類選考中') return;
         if (e.pendingConfirm) return;
         const _cs2 = cand.caStatus || cand.status || '';
-        if (['飛び(辞退)','前辞退','面接飛び','救出不可','見送り','承諾'].includes(_cs2)) return;
+        if (['飛び(辞退)','飛び','前辞退','面接飛び','救出不可','見送り','承諾'].includes(_cs2)) return;
         if (['選考辞退','書類お見送り','面接お見送り'].includes(e.selectionStatus)) return;
         interviewsUpcoming.push({
           name: cand.name,
@@ -1077,7 +1077,7 @@ function _loadAdminSummaryData() {
         const cand = cands.find(c => c.id === cid);
         if (!cand) return;
         const _cs3 = cand.caStatus || cand.status || '';
-        if (['飛び(辞退)','前辞退','面接飛び','救出不可','見送り','承諾'].includes(_cs3)) return;
+        if (['飛び(辞退)','飛び','前辞退','面接飛び','救出不可','見送り','承諾'].includes(_cs3)) return;
         (entries || []).forEach(e => {
           if (['選考辞退','書類お見送り','面接お見送り'].includes(e.selectionStatus)) return;
           if (e.pendingConfirm) {
