@@ -2526,7 +2526,10 @@ function CandidateManagePage() {
                             }}>{isValidCandidate(c)?'有効':'無効'}</span>
                           : <span style={{color:'var(--text-muted)',fontSize:'13px'}}>—</span>}
                       </td>
-                      <td className="name" style={{fontWeight:'600',fontSize:'15px'}}>{c.name}</td>
+                      <td className="name" style={{fontWeight:'600',fontSize:'15px'}}>
+                        {c.name}
+                        <DocLinks resume={c.docResumeUrl} shokumu={c.docShokumuUrl} />
+                      </td>
                       <td style={{textAlign:'center'}}>
                         <select value={c.gender||''} onChange={e=>updateField(c.id,'gender',e.target.value)}
                           style={{fontSize:'13px',padding:'3px 6px',border:'1px solid var(--border)',borderRadius:'4px',background:'var(--bg-base)',color:'var(--text-primary)',width:'62px'}}>
@@ -3265,6 +3268,43 @@ function exportAllCandidatesCSV() {
   const ts = now.getFullYear()+('0'+(now.getMonth()+1)).slice(-2)+('0'+now.getDate()).slice(-2);
   a.href=url; a.download='crm_all_candidates_'+ts+'.csv';
   document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+// ====== DOC LINKS（書類リンクのホバーポップアップ）======
+function DocLinks({ resume, shokumu }) {
+  const [open, setOpen] = React.useState(false);
+  if (!resume && !shokumu) return null;
+  return (
+    <span
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      style={{position:'relative', display:'inline-block', marginLeft:'4px', cursor:'pointer', fontSize:'12px', verticalAlign:'middle'}}
+      title="提出書類あり"
+    >
+      <span style={{color:'#2563eb'}}>📎</span>
+      {open && (
+        <div style={{
+          position:'absolute', top:'100%', left:'0', marginTop:'4px', zIndex:9999,
+          background:'#fff', border:'1px solid var(--border)', borderRadius:'6px',
+          boxShadow:'0 6px 20px rgba(0,0,0,0.15)', padding:'8px',
+          display:'flex', flexDirection:'column', gap:'4px', minWidth:'160px',
+        }}>
+          {resume && (
+            <a href={resume} target="_blank" rel="noopener noreferrer"
+              style={{display:'block',padding:'6px 10px',background:'#eff6ff',color:'#1d4ed8',borderRadius:'4px',fontSize:'12px',fontWeight:600,textDecoration:'none',whiteSpace:'nowrap'}}>
+              📄 履歴書を開く
+            </a>
+          )}
+          {shokumu && (
+            <a href={shokumu} target="_blank" rel="noopener noreferrer"
+              style={{display:'block',padding:'6px 10px',background:'#f5f3ff',color:'#6d28d9',borderRadius:'4px',fontSize:'12px',fontWeight:600,textDecoration:'none',whiteSpace:'nowrap'}}>
+              📋 職務経歴書を開く
+            </a>
+          )}
+        </div>
+      )}
+    </span>
+  );
 }
 
 function App() {
