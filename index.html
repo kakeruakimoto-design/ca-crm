@@ -533,22 +533,101 @@ select.filter-select {
       'crm-goals',
     ];
 
+    // === 重複排除ヘルパー ===
+    function _norm(s) { return (s == null ? '' : String(s)).replace(/\s/g, ''); }
+    function _scoreCand(c) {
+      let s = 0;
+      if (c.phone) s++;
+      if (c.email) s++;
+      if (c.companyName) s++;
+      if (c.docResumeUrl) s += 2;
+      if (c.docShokumuUrl) s += 2;
+      if (c.firstInterviewDate) s++;
+      if (c.recommendationDate) s++;
+      if (c.expectedRevenue) s++;
+      if (c.contractAmount) s++;
+      if (c.bridgeDate) s++;
+      if (c.acceptedAt || c.acceptanceDate) s += 2;
+      return s;
+    }
+    function _dedupCands(arr) {
+      if (!Array.isArray(arr)) return arr;
+      const groups = {};
+      const noNameItems = [];
+      for (const c of arr) {
+        if (!c || typeof c !== 'object') continue;
+        const n = _norm(c.name);
+        if (!n) { noNameItems.push(c); continue; }
+        // 同じ担当CA同士の重複だけ統合（別CAが同名で扱っているケースは保持）
+        const key = n + '|' + _norm(c.assignedCA);
+        (groups[key] = groups[key] || []).push(c);
+      }
+      const out = [];
+      for (const items of Object.values(groups)) {
+        if (items.length === 1) { out.push(items[0]); }
+        else { items.sort(function(a,b){ return _scoreCand(b) - _scoreCand(a); }); out.push(items[0]); }
+      }
+      return out.concat(noNameItems);
+    }
+    function _dedupAccepted(arr) {
+      if (!Array.isArray(arr)) return arr;
+      // accepted は (name + companyName) で一意化、無ければ name のみ
+      const groups = {};
+      for (const a of arr) {
+        if (!a || typeof a !== 'object') continue;
+        const n = _norm(a.name);
+        if (!n) continue;
+        const key = n + '|' + _norm(a.companyName);
+        (groups[key] = groups[key] || []).push(a);
+      }
+      const out = [];
+      for (const items of Object.values(groups)) {
+        if (items.length === 1) { out.push(items[0]); }
+        else {
+          items.sort(function(a,b){
+            let sa = 0, sb = 0;
+            if (a.contractAmount) sa++; if (b.contractAmount) sb++;
+            if (a.joiningDate) sa++; if (b.joiningDate) sb++;
+            if (a.acceptanceDate || a.acceptedAt) sa++; if (b.acceptanceDate || b.acceptedAt) sb++;
+            return sb - sa;
+          });
+          out.push(items[0]);
+        }
+      }
+      return out;
+    }
+    function _dedupValueForKey(key, parsed) {
+      if (key === 'crm-candidates') return _dedupCands(parsed);
+      if (key === 'crm-accepted')   return _dedupAccepted(parsed);
+      return parsed;
+    }
+    window.__dedupCandidates = _dedupCands;
+    window.__dedupAccepted = _dedupAccepted;
+
     // オリジナルのsetItemを保存
     const _orig = localStorage.setItem.bind(localStorage);
     window.__lsSetItem = _orig;
 
-    // localStorage書き込み → Firestoreにも自動反映
+    // localStorage書き込み → 重複除去 → Firestoreにも自動反映
     localStorage.setItem = function(key, value) {
-      _orig(key, value);
+      let outValue = value;
+      if (SYNC_KEYS.includes(key)) {
+        try {
+          const parsed = JSON.parse(value);
+          const cleaned = _dedupValueForKey(key, parsed);
+          outValue = JSON.stringify(cleaned);
+        } catch(e) {}
+      }
+      _orig(key, outValue);
       if (SYNC_KEYS.includes(key) && window.__crmDb) {
         try {
-          window.__crmDb.collection('crm').doc(key).set({ v: JSON.parse(value) })
+          window.__crmDb.collection('crm').doc(key).set({ v: JSON.parse(outValue) })
             .catch(function(e) { console.warn('[Firestore] write error:', key, e); });
         } catch(e) {}
       }
     };
 
-    // Firestore → localStorage同期（Promise返す）
+    // Firestore → localStorage同期（読み込み時も重複除去）
     window.__syncFromFirestore = async function() {
       if (!window.__crmDb) return [];
       const synced = [];
@@ -556,7 +635,8 @@ select.filter-select {
         try {
           const snap = await window.__crmDb.collection('crm').doc(key).get();
           if (snap.exists && snap.data() && snap.data().v !== undefined) {
-            _orig(key, JSON.stringify(snap.data().v));
+            const v = _dedupValueForKey(key, snap.data().v);
+            _orig(key, JSON.stringify(v));
             synced.push(key);
           }
         } catch(e) { console.warn('[Firestore] read error:', key, e); }
@@ -564,13 +644,14 @@ select.filter-select {
       return synced;
     };
 
-    // リアルタイム更新リスナー（他のCAが更新したら即反映）
+    // リアルタイム更新リスナー（読み込み時も重複除去）
     window.__startFirestoreListener = function(onUpdate) {
       if (!window.__crmDb) return;
       SYNC_KEYS.forEach(function(key) {
         window.__crmDb.collection('crm').doc(key).onSnapshot(function(snap) {
           if (snap.exists && snap.data() && snap.data().v !== undefined) {
-            _orig(key, JSON.stringify(snap.data().v));
+            const v = _dedupValueForKey(key, snap.data().v);
+            _orig(key, JSON.stringify(v));
             if (onUpdate) onUpdate(key);
           }
         }, function(e) { console.warn('[Firestore] listener error:', key, e); });
@@ -4586,6 +4667,28 @@ function NewCandidateModal({onClose, onSave}) {
     if (!form.name.trim()) { setError('氏名を入力してください'); return; }
     if (!form.phone.trim()) { setError('電話番号を入力してください'); return; }
     const todayISO = new Date().toISOString().slice(0,10);
+
+    // 重複チェック：正規化氏名 + 同担当CA で既存があれば確認ダイアログ
+    const _normN = s => String(s||'').replace(/\s/g, '');
+    try {
+      const stored = JSON.parse(localStorage.getItem('crm-candidates') || '[]');
+      const myName = _normN(form.name);
+      const dup = stored.find(c =>
+        _normN(c.name) === myName &&
+        (!c.assignedCA || c.assignedCA === CA_MY_NAME)
+      );
+      if (dup) {
+        const proceed = window.confirm(
+          `同じ氏名「${form.name}」が既に登録されています（担当：${dup.assignedCA||'未割当'}）。\n\n` +
+          'OK: それでも新規登録する\nキャンセル: 登録を中止する'
+        );
+        if (!proceed) {
+          setError(`「${form.name}」は既に登録済みのため、登録をキャンセルしました。`);
+          return;
+        }
+      }
+    } catch(e) {}
+
     const newCand = {
       id: 'c' + Date.now(),
       name: form.name.trim(),
