@@ -1598,13 +1598,14 @@ function _loadSummaryData() {
   const tomorrowStr = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
   const in7DaysStr = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
 
-  let cands = [], plans = {}, accepted = [];
+  let cands = [], plans = {}, accepted = [], meta = {};
   try {
     const s = JSON.parse(localStorage.getItem('crm-candidates') || '[]');
     cands = Array.isArray(s) ? s.filter(c => c.assignedCA === CA_MY_NAME) : [];
   } catch {}
   try { plans = JSON.parse(localStorage.getItem('crm-interview-plans') || '{}'); } catch {}
   try { accepted = JSON.parse(localStorage.getItem('crm-accepted') || '[]'); } catch {}
+  try { meta = JSON.parse(localStorage.getItem('crm-candidate-meta') || '{}'); } catch {}
 
   // 本日の初回面接（firstInterviewDate が今日）
   const interviewsFirstToday = cands
@@ -1622,12 +1623,14 @@ function _loadSummaryData() {
     if (!cand) return;
     (entries || []).forEach(e => {
       if ((e.date || '').startsWith(todayStr)) {
-        // 書類選考中・面接確定返信待ちは今後の面接予定に含めない
+        // 書類選考中は除外
         if (e.selectionStatus === '書類選考中') return;
-        if (e.pendingConfirm) return;
+        // 確定返信待ち（未確定）も含めない（確定済み = pendingConfirm=true のみ表示）
+        if (!e.pendingConfirm) return;
         // 終了済み（候補者側・選考側）は除外
         const _cs = cand.caStatus || cand.status || '';
         if (['飛び(辞退)','前辞退','面接飛び','救出不可','見送り','承諾'].includes(_cs)) return;
+        if ((meta[cid] || {}).terminated) return;
         if (['選考辞退','書類お見送り','面接お見送り'].includes(e.selectionStatus)) return;
         interviewsToday.push({
           name: cand.name,
@@ -1639,25 +1642,28 @@ function _loadSummaryData() {
     });
   });
 
-  // 今後7日の面接予定（明日〜7日後）
+  // 今後7日の面接予定（今日〜7日後）— 今日は赤太字表示
   const interviewsUpcoming = [];
   Object.entries(plans).forEach(([cid, entries]) => {
     const cand = cands.find(c => c.id === cid);
     if (!cand) return;
     (entries || []).forEach(e => {
       const d = (e.date || '').slice(0, 10);
-      if (d >= tomorrowStr && d <= in7DaysStr) {
-        // 書類選考中・面接確定返信待ちは今後の面接予定に含めない
+      if (d >= todayStr && d <= in7DaysStr) {
+        // 書類選考中は今後の面接予定に含めない
         if (e.selectionStatus === '書類選考中') return;
-        if (e.pendingConfirm) return;
+        // 確定返信待ち（未確定）も含めない（確定済み = pendingConfirm=true のみ表示）
+        if (!e.pendingConfirm) return;
         // 終了済みは除外
         const _cs2 = cand.caStatus || cand.status || '';
         if (['飛び(辞退)','前辞退','面接飛び','救出不可','見送り','承諾'].includes(_cs2)) return;
+        if ((meta[cid] || {}).terminated) return;
         if (['選考辞退','書類お見送り','面接お見送り'].includes(e.selectionStatus)) return;
         interviewsUpcoming.push({
           name: cand.name,
           company: e.company || '—',
           date: d.slice(5).replace('-', '/'),
+          isToday: d === todayStr,
           type: e.selectionStatus || '企業面接',
         });
       }
@@ -1680,7 +1686,7 @@ function _loadSummaryData() {
           urgent: days > 2,
         };
       }),
-    // ② 企業面接管理で pendingConfirm がチェックされているエントリ
+    // ② 企業面接管理で「確定」チェックが付いていないエントリ（=まだ確定返信待ち）
     ...(() => {
       const result = [];
       Object.entries(plans).forEach(([cid, entries]) => {
@@ -1688,13 +1694,18 @@ function _loadSummaryData() {
         if (!cand) return;
         const _cs3 = cand.caStatus || cand.status || '';
         if (['飛び(辞退)','前辞退','面接飛び','救出不可','見送り','承諾'].includes(_cs3)) return; // 終了済み除外
+        if ((meta[cid] || {}).terminated) return; // 企業面接管理側で終了されたものも除外
         (entries || []).forEach(e => {
           if (['選考辞退','書類お見送り','面接お見送り'].includes(e.selectionStatus)) return;
-          if (e.pendingConfirm) {
+          if (e.selectionStatus === '書類選考中') return; // 書類選考中は除外
+          // 確定チェックが付いていない = 確定返信待ち
+          if (!e.pendingConfirm) {
             const dateStr = e.date ? e.date.slice(5,10).replace('-','/') : '日時未確定';
+            const candMemo = (cand.memo || '').trim();
             result.push({
               name: cand.name,
-              memo: `${e.company||'企業'} · ${dateStr} 面接確定返信待ち`,
+              memo: `${e.company||'企業'} · ${dateStr}`,
+              candidateMemo: candMemo,
               urgent: true,
             });
           }
@@ -1704,12 +1715,12 @@ function _loadSummaryData() {
     })(),
   ];
 
-  // 企業提案中: ブリッジ成功以降・承諾/見送り/飛び(辞退)でない候補者
-  // 初回面接が終わった人は必ずブリッジ成功 or 終了になる（初回面接ステータスのまま止まることはない）
-  const PROP_ST = ['企業提案','推薦','面接対策１','面接対策２','企業面接','内定'];
+  // ブリッジ成功（企業提案前）: caStatus === 'ブリッジ成功' かつ 企業面接管理で「終了」されていない候補者
   const proposalCandidates = cands.filter(c => {
     const cs = c.caStatus || c.status || '';
-    return PROP_ST.includes(cs) || !!c.recommendationDate;
+    if (cs !== 'ブリッジ成功') return false;
+    if ((meta[c.id] || {}).terminated) return false;
+    return true;
   }).map(c => {
     // 最新の提案企業をinterview plansから取得
     const cpList = plans[c.id] || [];
@@ -1717,8 +1728,7 @@ function _loadSummaryData() {
       .filter(cp => !['選考辞退','書類お見送り','面接お見送り'].includes(cp.selectionStatus||''))
       .map(cp => cp.company || '').filter(Boolean);
     const latestCompany = activeCompanies[activeCompanies.length - 1] || c.companyName || '—';
-    // 最新の日付（提案日→推薦日→企業面接日→内定日の順で最新を表示）
-    const stageDate = c.offerDate || c.companyInterviewDate || c.recommendationDate || c.proposalDate || c.bridgeDate || '';
+    const stageDate = c.bridgeDate || c.recommendationDate || c.proposalDate || '';
     return { ...c, _propCompany: latestCompany, _propDate: stageDate.slice(0,10) };
   });
 
@@ -2008,16 +2018,29 @@ function SummaryPage({ period }) {
             {(() => {
               const tomorrowFmt = new Date(Date.now() + 86400000).toISOString().slice(5,10).replace('-','/');
               return INTERVIEWS_UPCOMING.map((iv, i) => {
-                const isTomorrow = iv.date === tomorrowFmt;
+                const isToday = !!iv.isToday;
+                const isTomorrow = !isToday && iv.date === tomorrowFmt;
+                let wrapStyle = {};
+                if (isToday) {
+                  wrapStyle = { background:'#fef2f2', borderLeft:'3px solid #dc2626', borderRadius:'6px', paddingLeft:'8px', marginBottom:'4px' };
+                } else if (isTomorrow) {
+                  wrapStyle = { background:'#fff7ed', borderLeft:'3px solid #f97316', borderRadius:'6px', paddingLeft:'8px', marginBottom:'4px' };
+                }
+                const nameStyle = isToday
+                  ? { color:'#dc2626', fontWeight:'800' }
+                  : isTomorrow ? { color:'#c2410c', fontWeight:'700' } : {};
+                const metaStyle = isToday
+                  ? { color:'#dc2626', fontWeight:'700' }
+                  : isTomorrow ? { color:'#ea580c' } : {};
+                const dotColor = isToday ? '#dc2626' : (isTomorrow ? '#f97316' : 'var(--accent)');
                 return (
-                  <div key={i} className="interview-item" style={isTomorrow ? {
-                    background:'#fff7ed', borderLeft:'3px solid #f97316',
-                    borderRadius:'6px', paddingLeft:'8px', marginBottom:'4px'
-                  } : {}}>
-                    <div className="interview-dot" style={{background: isTomorrow ? '#f97316' : 'var(--accent)'}} />
+                  <div key={i} className="interview-item" style={wrapStyle}>
+                    <div className="interview-dot" style={{background: dotColor}} />
                     <div>
-                      <div className="interview-name" style={isTomorrow ? {color:'#c2410c', fontWeight:'700'} : {}}>{iv.name}</div>
-                      <div className="interview-meta" style={isTomorrow ? {color:'#ea580c'} : {}}>{iv.company} · {iv.date} · {iv.type}</div>
+                      <div className="interview-name" style={nameStyle}>
+                        {iv.name}{isToday && <span style={{marginLeft:'6px',fontSize:'10px',background:'#dc2626',color:'#fff',padding:'1px 6px',borderRadius:'4px'}}>本日</span>}
+                      </div>
+                      <div className="interview-meta" style={metaStyle}>{iv.company} · {iv.date} · {iv.type}</div>
                     </div>
                   </div>
                 );
@@ -2031,12 +2054,22 @@ function SummaryPage({ period }) {
             <span className="badge-count" style={{background:'var(--warning)'}}>{PENDING_REPLY.length}</span>
           </div>
           <div className="card-body">
-            {PENDING_REPLY.map((p, i) => (
+            {PENDING_REPLY.length === 0
+              ? <div className="empty-state">確定返信待ちなし</div>
+              : PENDING_REPLY.map((p, i) => (
               <div key={i} className="interview-item">
                 <div className="interview-dot" style={{background: p.urgent ? 'var(--danger)' : 'var(--warning)'}} />
-                <div>
+                <div style={{flex:1}}>
                   <div className="interview-name">{p.name}</div>
                   <div className="interview-meta" style={{color: p.urgent ? 'var(--danger)' : undefined}}>{p.memo}</div>
+                  {p.candidateMemo && (
+                    <div style={{
+                      fontSize:'11px', color:'var(--text-muted)', marginTop:'2px',
+                      background:'var(--bg-base)', padding:'3px 6px', borderRadius:'4px',
+                      borderLeft:'2px solid var(--accent-light)',
+                      overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+                    }}>📝 {p.candidateMemo}</div>
+                  )}
                 </div>
               </div>
             ))}
@@ -2048,12 +2081,12 @@ function SummaryPage({ period }) {
       <div className="grid-2">
         <div className="card">
           <div className="card-header">
-            <div className="card-title">📋 企業提案中</div>
+            <div className="card-title">🌉 ブリッジ成功（企業提案準備中）</div>
             <span className="badge-count">{proposalCandidates.length}</span>
           </div>
           <div className="card-body" style={{maxHeight:'180px', overflowY:'auto'}}>
             {proposalCandidates.length === 0
-              ? <div className="empty-state">提案中の候補者なし</div>
+              ? <div className="empty-state">ブリッジ成功の候補者なし</div>
               : proposalCandidates.map((c, i) => (
               <div key={i} className="interview-item">
                 <div className="interview-dot" style={{background: getStatusColor(c.caStatus || c.status)}} />
