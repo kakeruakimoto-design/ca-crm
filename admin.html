@@ -2088,6 +2088,10 @@ const JOB_CATEGORIES = [
 ];
 // 新カラム用：テレアポ回数
 const TELEAPO_OPTIONS = ['1回目','2回目','3回目','4回目'];
+// 求職者管理：性別オプション
+const GENDER_OPTS_ADMIN = ['男性','女性','その他'];
+// 求職者管理：年齢オプション（18〜70歳）
+const AGE_OPTS_ADMIN = Array.from({length: 53}, (_, i) => 18 + i); // 18..70
 
 const MOCK_CANDS_ADMIN = [
   {id:'a001',name:'田野 峻平',  gender:'男性',age:35,prefecture:'神奈川県',jobType:'ゲームテスター',  createdAt:'2026-04-02',media:'Indeed',     assignedCA:'秋元',status:'日程設定済み',firstInterviewDate:'2026-04-07T10:00',memo:'4/2設定',   phone:'090-1234-5678',email:'tanono@example.com',   sourceCompany:'ネクストレンド'},
@@ -2523,8 +2527,21 @@ function CandidateManagePage() {
                           : <span style={{color:'var(--text-muted)',fontSize:'13px'}}>—</span>}
                       </td>
                       <td className="name" style={{fontWeight:'600',fontSize:'15px'}}>{c.name}</td>
-                      <td style={{textAlign:'center',fontSize:'14px',color:'var(--text-secondary)'}}>{c.gender||'—'}</td>
-                      <td style={{color:'var(--text-secondary)',fontSize:'14px'}}>{c.age}歳・{c.prefecture}</td>
+                      <td style={{textAlign:'center'}}>
+                        <select value={c.gender||''} onChange={e=>updateField(c.id,'gender',e.target.value)}
+                          style={{fontSize:'13px',padding:'3px 6px',border:'1px solid var(--border)',borderRadius:'4px',background:'var(--bg-base)',color:'var(--text-primary)',width:'62px'}}>
+                          <option value="">—</option>
+                          {GENDER_OPTS_ADMIN.map(g=><option key={g} value={g}>{g}</option>)}
+                        </select>
+                      </td>
+                      <td style={{color:'var(--text-secondary)',fontSize:'14px',whiteSpace:'nowrap'}}>
+                        <select value={c.age||''} onChange={e=>updateField(c.id,'age', e.target.value ? Number(e.target.value) : null)}
+                          style={{fontSize:'13px',padding:'2px 4px',border:'1px solid var(--border)',borderRadius:'4px',background:'var(--bg-base)',color:'var(--text-primary)',width:'58px',marginRight:'4px'}}>
+                          <option value="">—</option>
+                          {AGE_OPTS_ADMIN.map(a=><option key={a} value={a}>{a}歳</option>)}
+                        </select>
+                        · {c.prefecture||'—'}
+                      </td>
                       <td><span className="tag">{c.jobType}</span></td>
                       <td>
                         <select value={c.sourceCompany||''} onChange={e=>updateField(c.id,'sourceCompany',e.target.value)}
