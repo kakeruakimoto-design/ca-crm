@@ -154,6 +154,78 @@ select.filter-select{background:var(--bg-base);border:1px solid var(--border);bo
 </style>
 </head>
 <body>
+<!-- ★★ アプリバージョン管理＋自動更新検知 ★★ -->
+<script>
+(function() {
+  window.__APP_VERSION = '20260527-1957';
+  var APP_VERSION = window.__APP_VERSION;
+
+  function forceReload() {
+    console.log('[Version] 新バージョン検出。強制リロード実行...');
+    try {
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          return Promise.all(names.map(function(n) { return caches.delete(n); }));
+        }).finally(function() {
+          var url = new URL(window.location.href);
+          url.searchParams.set('_cb', Date.now());
+          window.location.replace(url.toString());
+        });
+        return;
+      }
+    } catch(e) {}
+    var url = new URL(window.location.href);
+    url.searchParams.set('_cb', Date.now());
+    window.location.replace(url.toString());
+  }
+
+  function showUpdateBanner(serverVersion) {
+    if (document.getElementById('__update_banner')) return;
+    var banner = document.createElement('div');
+    banner.id = '__update_banner';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;padding:14px 20px;text-align:center;z-index:99999;font-size:14px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,0.2);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
+    banner.innerHTML = '🔔 新しいバージョンが公開されました（' + (serverVersion || '') + '）。3秒後に自動更新します...';
+    document.body.appendChild(banner);
+    setTimeout(forceReload, 3000);
+  }
+
+  async function checkServerVersion() {
+    try {
+      var url = window.location.pathname + '?_v=' + Date.now();
+      var res = await fetch(url, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
+      });
+      if (!res.ok) return;
+      var text = await res.text();
+      var match = text.match(/__APP_VERSION\s*=\s*['"]([^'"]+)['"]/);
+      if (match && match[1] && match[1] !== APP_VERSION) {
+        console.log('[Version] サーバ:', match[1], 'ローカル:', APP_VERSION);
+        showUpdateBanner(match[1]);
+      }
+    } catch(e) {
+      console.warn('[Version] チェック失敗:', e);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+      setTimeout(checkServerVersion, 1500);
+    });
+  } else {
+    setTimeout(checkServerVersion, 1500);
+  }
+
+  setInterval(checkServerVersion, 2 * 60 * 1000);
+
+  document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) checkServerVersion();
+  });
+
+  console.log('[Version] APP_VERSION (admin) =', APP_VERSION);
+})();
+</script>
+
 <!-- Firebase初期化（admin.html用） -->
 <script>
 (function() {
