@@ -2675,12 +2675,35 @@ function InterviewsPage() {
   const [plans, setPlans] = React.useState(loadPlans);
   const [meta, setMeta] = React.useState(loadMeta);
 
-  const pipelineCandidates = React.useMemo(() =>
-    candidates.filter(c => {
+  const pipelineCandidates = React.useMemo(() => {
+    const list = candidates.filter(c => {
       const cs = c.caStatus || c.status || '';
       return ['推薦','面接対策１','面接対策２','企業面接','企業面接1','企業面接2','選考中','内定','承諾'].includes(cs);
-    })
-  , [candidates]);
+    });
+    // 終了/非終了で分けて並べる。終了は新しい終了日が上。
+    const active = [];
+    const terminated = [];
+    for (const c of list) {
+      if ((meta[c.id] || {}).terminated) terminated.push(c);
+      else active.push(c);
+    }
+    terminated.sort((a, b) => {
+      const da = (meta[a.id] || {}).terminatedAt || '';
+      const db = (meta[b.id] || {}).terminatedAt || '';
+      return db.localeCompare(da); // 新しい終了日が上
+    });
+    return [...active, ...terminated];
+  }, [candidates, meta]);
+
+  // 終了状態のトグル（メタに terminated と terminatedAt を同時に保存）
+  const toggleTerminated = (cid, value) => {
+    const cur = meta[cid] || {};
+    const next = { ...cur, terminated: value };
+    if (value) {
+      next.terminatedAt = new Date().toISOString().slice(0,10);
+    }
+    saveMeta({ ...meta, [cid]: next });
+  };
 
   const savePlans = (newPlans) => {
     setPlans(newPlans);
@@ -2773,11 +2796,33 @@ function InterviewsPage() {
           {pipelineCandidates.map(c => {
             const m = meta[c.id] || {};
             const companyList = plans[c.id] || [];
+            const isTerminated = !!m.terminated;
             return (
-              <div key={c.id} style={{border:'1px solid var(--border)',borderRadius:'var(--radius)',overflow:'hidden',boxShadow:'var(--shadow)'}}>
+              <div key={c.id} style={{
+                border:'1px solid var(--border)',borderRadius:'var(--radius)',overflow:'hidden',boxShadow:'var(--shadow)',
+                background: isTerminated ? '#f3f4f6' : 'var(--bg-card)',
+                opacity: isTerminated ? 0.65 : 1,
+              }}>
                 {/* 候補者ヘッダー */}
-                <div style={{background:'var(--accent-subtle)',borderBottom:'1px solid var(--border)',padding:'10px 14px',display:'flex',flexWrap:'wrap',gap:'10px',alignItems:'center'}}>
-                  <span style={{fontWeight:'700',fontSize:'14px',color:'var(--text-primary)',minWidth:'90px'}}>{c.name}</span>
+                <div style={{
+                  background: isTerminated ? '#e5e7eb' : 'var(--accent-subtle)',
+                  borderBottom:'1px solid var(--border)',padding:'10px 14px',
+                  display:'flex',flexWrap:'wrap',gap:'10px',alignItems:'center',
+                }}>
+                  <span style={{
+                    fontWeight:'700',fontSize:'14px',
+                    color: isTerminated ? 'var(--text-muted)' : 'var(--text-primary)',
+                    minWidth:'90px',
+                    textDecoration: isTerminated ? 'line-through' : 'none',
+                  }}>{c.name}</span>
+                  <label style={{display:'flex',alignItems:'center',gap:'4px',fontSize:'13px',color:'var(--text-secondary)',cursor:'pointer'}}>
+                    <input type="checkbox" checked={isTerminated} onChange={e=>toggleTerminated(c.id, e.target.checked)}
+                      style={{width:'15px',height:'15px',cursor:'pointer'}}/>
+                    終了
+                    {isTerminated && m.terminatedAt && (
+                      <span style={{fontSize:'11px',color:'var(--text-muted)',marginLeft:'2px'}}>({m.terminatedAt.replace(/^(\d{4})-(\d{2})-(\d{2})$/,(_,y,mo,d)=>`${parseInt(mo)}/${parseInt(d)}`)})</span>
+                    )}
+                  </label>
                   <StatusBadge status={c.status} />
                   <label style={{display:'flex',alignItems:'center',gap:'4px',fontSize:'14px',color:'var(--text-secondary)'}}>
                     見込み:
